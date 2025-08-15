@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Modal, ScrollView, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import LocationDisplay from './LocationDisplay';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { geocodeLocation, reverseGeocode } from '@/services/map-fetching';
 
 interface RouteSearchProps {
@@ -25,14 +24,13 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
     coords: { lat: 0, lon: 0 }
   });
   const [bikeType, setBikeType] = useState('regular');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [sourceQuery, setSourceQuery] = useState('');
+  const [destQuery, setDestQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchingFor, setIsSearchingFor] = useState<'source' | 'destination'>('destination');
-  const [isLoadingAddress, setIsLoadingAddress] = useState(false);
   
   const buttonColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint');
-  const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#1C1C1E' }, 'background');
-  const accentColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint');
+  // backgroundColor removed (no inline search UI)
 
   const bikeTypes = [
     { id: 'regular', name: 'Regular Bike' },
@@ -62,10 +60,16 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
       }
     } catch (error) {
       console.error('Error reverse geocoding:', error);
-    } finally {
-      setIsLoadingAddress(false);
     }
-  };
+  }, [defaultSource]);
+
+  // Effect to reverse geocode current location whenever defaultSource changes
+  useEffect(() => {
+    if (defaultSource && defaultSource.lat && defaultSource.lon && 
+        (defaultSource.lat !== 14.5995 || defaultSource.lon !== 120.9842)) {
+      reverseGeocode(defaultSource.lat, defaultSource.lon);
+    }
+  }, [defaultSource, reverseGeocode]);
 
   const handleSubmit = () => {
     if (destination.coords.lat !== 0 && destination.coords.lon !== 0) {
@@ -75,7 +79,10 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
   };
 
   const searchLocation = async (query: string) => {
-    if (query.length < 3) return;
+    if (query.length < 3) {
+      setSearchResults([]);
+      return;
+    }
 
     try {
       const features = await geocodeLocation(query);
@@ -91,6 +98,17 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
     }
   };
 
+  // debounce scheduler for searchLocation
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleSearch = (query: string) => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current as any);
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      searchLocation(query);
+    }, 300);
+  };
+
   const selectLocation = (feature: any) => {
     const name = feature.properties.formatted;
     const coords = {
@@ -104,14 +122,31 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
       setDestination({ name, coords });
     }
 
-    setSearchQuery('');
+    // clear the correct query and results
+    if (isSearchingFor === 'source') setSourceQuery('');
+    else setDestQuery('');
     setSearchResults([]);
+    // clear any pending debounced search
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current as any);
+      searchDebounceRef.current = null;
+    }
   };
+
+  // clear debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current as any);
+        searchDebounceRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <View style={styles.container}>
       <TouchableOpacity
-        style={[styles.searchButton, { backgroundColor: buttonColor }]}
+        style={[styles.searchButton, { backgroundColor: '#00c853' }]}
         onPress={() => setModalVisible(true)}
       >
         <ThemedText style={styles.searchButtonText}>Plan Route</ThemedText>
@@ -129,31 +164,72 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
             
             {/* Source */}
             <ThemedText>Starting Point:</ThemedText>
-            <TouchableOpacity 
+            <TextInput
               style={[styles.locationInput, isSearchingFor === 'source' ? styles.activeInput : {}]}
-              onPress={() => {
+              value={isSearchingFor === 'source' ? sourceQuery : (source.name !== 'Current Location' ? source.name : '')}
+              onFocus={() => {
                 setIsSearchingFor('source');
-                setSearchQuery(source.name !== 'Current Location' ? source.name : '');
+                const initial = source.name !== 'Current Location' ? source.name : '';
+                setSourceQuery(initial);
+                if (initial.length >= 3) scheduleSearch(initial);
               }}
-            >
-              <LocationDisplay 
-                locationName={source.name !== 'Current Location' ? source.name : undefined} 
-                isLoading={isLoadingAddress}
-                showFullAddress={true}
-              />
-            </TouchableOpacity>
+              onChangeText={(text) => {
+                setSourceQuery(text);
+                setIsSearchingFor('source');
+                scheduleSearch(text);
+              }}
+              placeholder={source.name === 'Current Location' ? 'Current Location' : 'Enter starting point'}
+              placeholderTextColor="#999"
+            />
+
+            {/* Search results under Starting Point when searching source */}
+      {isSearchingFor === 'source' && searchResults.length > 0 && (
+              <ScrollView style={styles.searchResults}>
+        {searchResults.map((feature: any, index: number) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.searchResultItem}
+                    onPress={() => selectLocation(feature)}
+                  >
+                    <ThemedText>{feature.properties.formatted}</ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
             
             {/* Destination */}
             <ThemedText>Destination:</ThemedText>
-            <TouchableOpacity 
+            <TextInput
               style={[styles.locationInput, isSearchingFor === 'destination' ? styles.activeInput : {}]}
-              onPress={() => {
+              value={isSearchingFor === 'destination' ? destQuery : (destination.name || '')}
+              onFocus={() => {
                 setIsSearchingFor('destination');
-                setSearchQuery(destination.name);
+                const initial = destination.name || '';
+                setDestQuery(initial);
+                if (initial.length >= 3) scheduleSearch(initial);
               }}
-            >
-              <ThemedText>{destination.name || 'Select destination'}</ThemedText>
-            </TouchableOpacity>
+              onChangeText={(text) => {
+                setDestQuery(text);
+                setIsSearchingFor('destination');
+                scheduleSearch(text);
+              }}
+              placeholder={destination.name ? destination.name : 'Enter destination'}
+              placeholderTextColor="#999"
+            />
+            {/* Search results under Destination when searching destination */}
+      {isSearchingFor === 'destination' && searchResults.length > 0 && (
+              <ScrollView style={styles.searchResults}>
+        {searchResults.map((feature: any, index: number) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.searchResultItem}
+                    onPress={() => selectLocation(feature)}
+                  >
+                    <ThemedText>{feature.properties.formatted}</ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
             
             {/* Bike Type Selection */}
             <ThemedText>Bike Type:</ThemedText>
@@ -179,38 +255,7 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
               ))}
             </View>
 
-            {/* Search Input - Always Visible */}
-            <View style={styles.searchContainer}>
-              <ThemedText style={styles.searchLabel}>
-                Search for {isSearchingFor === 'source' ? 'starting point' : 'destination'}:
-              </ThemedText>
-              
-              <TextInput
-                style={[styles.searchInput, { backgroundColor }]}
-                value={searchQuery}
-                onChangeText={(text) => {
-                  setSearchQuery(text);
-                  searchLocation(text);
-                }}
-                placeholder={`Enter location name...`}
-                placeholderTextColor="#999"
-                autoFocus={true}
-              />
-              
-              {searchResults.length > 0 && (
-                <ScrollView style={styles.searchResults}>
-                  {searchResults.map((feature, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.searchResultItem}
-                      onPress={() => selectLocation(feature)}
-                    >
-                      <ThemedText>{feature.properties.formatted}</ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
+            {/* removed search field below bike type choices as requested */}
             
             <View style={styles.buttonContainer}>
               <TouchableOpacity
@@ -240,9 +285,10 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 20,
+    bottom: 20,
     left: 20,
     right: 20,
+    zIndex: 900,
   },
   searchButton: {
     paddingHorizontal: 16,
@@ -301,6 +347,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     padding: 10,
     marginVertical: 10,
+    color: '#FFF',
   },
   bikeTypeContainer: {
     flexDirection: 'row',

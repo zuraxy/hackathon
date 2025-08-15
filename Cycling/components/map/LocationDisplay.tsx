@@ -70,10 +70,12 @@ const styles = StyleSheet.create({
   loadingText: {
     marginLeft: 8,
     fontSize: 14,
+    color: '#000',
   },
   locationText: {
     fontSize: 14,
     textAlign: 'center',
+    color: '#000',
   }
 });
 
