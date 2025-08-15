@@ -2,8 +2,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { geocodeLocation, reverseGeocode } from '@/services/map-fetching';
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { autocompleteLocation, geocodeLocation, reverseGeocode } from '@/services/map-fetching';
 
 interface RouteSearchProps {
   onSearch: (source: { lat: number; lon: number }, destination: { lat: number; lon: number }, bikeType: string) => void;
@@ -28,6 +28,7 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
   const [destQuery, setDestQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearchingFor, setIsSearchingFor] = useState<'source' | 'destination'>('destination');
+  const [isSearching, setIsSearching] = useState(false);
   
   const buttonColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint');
   // backgroundColor removed (no inline search UI)
@@ -39,13 +40,8 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
     { id: 'electric', name: 'Electric Bike' }
   ];
 
-  // Effect to reverse geocode current location whenever defaultSource changes
-  useEffect(() => {
-    if (defaultSource && defaultSource.lat && defaultSource.lon && 
-        (defaultSource.lat !== 14.5995 || defaultSource.lon !== 120.9842)) {
-      handleReverseGeocode(defaultSource.lat, defaultSource.lon);
-    }
-  }, [defaultSource]);
+  // Define state for address loading
+  const [isLoadingAddress, setIsLoadingAddress] = useState(false);
 
   const handleReverseGeocode = async (lat: number, lon: number) => {
     try {
@@ -55,21 +51,23 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
       if (address) {
         setSource({
           name: address || 'Current Location',
-          coords: defaultSource
+          coords: { lat, lon }
         });
       }
     } catch (error) {
       console.error('Error reverse geocoding:', error);
+    } finally {
+      setIsLoadingAddress(false);
     }
-  }, [defaultSource]);
+  };
 
   // Effect to reverse geocode current location whenever defaultSource changes
   useEffect(() => {
     if (defaultSource && defaultSource.lat && defaultSource.lon && 
         (defaultSource.lat !== 14.5995 || defaultSource.lon !== 120.9842)) {
-      reverseGeocode(defaultSource.lat, defaultSource.lon);
+      handleReverseGeocode(defaultSource.lat, defaultSource.lon);
     }
-  }, [defaultSource, reverseGeocode]);
+  }, [defaultSource]);
 
   const handleSubmit = () => {
     if (destination.coords.lat !== 0 && destination.coords.lon !== 0) {
@@ -79,22 +77,52 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
   };
 
   const searchLocation = async (query: string) => {
-    if (query.length < 3) {
+    if (query.length < 2) {
       setSearchResults([]);
       return;
     }
 
     try {
-      const features = await geocodeLocation(query);
+      setIsSearching(true);
       
-      if (features && features.length > 0) {
-        setSearchResults(features.slice(0, 5));
+      // Create focus point from current source location to get more relevant nearby results
+      const focusPoint = source.coords.lat !== 0 && source.coords.lon !== 0 
+        ? source.coords 
+        : defaultSource;
+      
+      // Use autocomplete for real-time suggestions with focus point to improve relevance
+      const results = await autocompleteLocation(query, {
+        focusPoint,
+        limit: 5
+      });
+      
+      if (results && results.length > 0) {
+        // Transform autocomplete results to match the format expected by the UI
+        const formattedResults = results.map((result: any) => ({
+          properties: {
+            formatted: result.formatted || result.address_line1 || result.name || 'Unknown location',
+            place_id: result.place_id
+          },
+          geometry: {
+            coordinates: [result.lon, result.lat]
+          }
+        }));
+        setSearchResults(formattedResults);
       } else {
-        setSearchResults([]);
+        // Fall back to regular geocoding if autocomplete returns no results
+        const features = await geocodeLocation(query);
+        
+        if (features && features.length > 0) {
+          setSearchResults(features.slice(0, 5));
+        } else {
+          setSearchResults([]);
+        }
       }
     } catch (error) {
       console.error('Error searching location:', error);
       setSearchResults([]);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -106,7 +134,7 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
     }
     searchDebounceRef.current = setTimeout(() => {
       searchLocation(query);
-    }, 300);
+    }, 250); // Reduced debounce time for better responsiveness
   };
 
   const selectLocation = (feature: any) => {
@@ -118,15 +146,17 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
 
     if (isSearchingFor === 'source') {
       setSource({ name, coords });
+      // Add a slight delay before clearing to improve UX
+      setTimeout(() => setSourceQuery(''), 100);
     } else {
       setDestination({ name, coords });
+      setTimeout(() => setDestQuery(''), 100);
     }
 
-    // clear the correct query and results
-    if (isSearchingFor === 'source') setSourceQuery('');
-    else setDestQuery('');
+    // Clear results immediately
     setSearchResults([]);
-    // clear any pending debounced search
+    
+    // Clear any pending debounced search
     if (searchDebounceRef.current) {
       clearTimeout(searchDebounceRef.current as any);
       searchDebounceRef.current = null;
@@ -171,7 +201,7 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
                 setIsSearchingFor('source');
                 const initial = source.name !== 'Current Location' ? source.name : '';
                 setSourceQuery(initial);
-                if (initial.length >= 3) scheduleSearch(initial);
+                if (initial.length >= 2) scheduleSearch(initial);
               }}
               onChangeText={(text) => {
                 setSourceQuery(text);
@@ -183,18 +213,31 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
             />
 
             {/* Search results under Starting Point when searching source */}
-      {isSearchingFor === 'source' && searchResults.length > 0 && (
-              <ScrollView style={styles.searchResults}>
-        {searchResults.map((feature: any, index: number) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.searchResultItem}
-                    onPress={() => selectLocation(feature)}
-                  >
-                    <ThemedText>{feature.properties.formatted}</ThemedText>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+            {isSearchingFor === 'source' && (
+              <View style={styles.searchResultsContainer}>
+                {isSearching ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={buttonColor} />
+                    <ThemedText style={styles.loadingText}>Searching locations...</ThemedText>
+                  </View>
+                ) : searchResults.length > 0 ? (
+                  <ScrollView style={styles.searchResults}>
+                    {searchResults.map((feature: any, index: number) => (
+                      <TouchableOpacity
+                        key={`source-${index}`}
+                        style={styles.searchResultItem}
+                        onPress={() => selectLocation(feature)}
+                      >
+                        <ThemedText style={styles.searchResultName}>{feature.properties.formatted}</ThemedText>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                ) : sourceQuery.length > 1 ? (
+                  <View style={styles.noResultsContainer}>
+                    <ThemedText style={styles.noResultsText}>No locations found</ThemedText>
+                  </View>
+                ) : null}
+              </View>
             )}
             
             {/* Destination */}
@@ -206,7 +249,7 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
                 setIsSearchingFor('destination');
                 const initial = destination.name || '';
                 setDestQuery(initial);
-                if (initial.length >= 3) scheduleSearch(initial);
+                if (initial.length >= 2) scheduleSearch(initial);
               }}
               onChangeText={(text) => {
                 setDestQuery(text);
@@ -217,18 +260,31 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
               placeholderTextColor="#999"
             />
             {/* Search results under Destination when searching destination */}
-      {isSearchingFor === 'destination' && searchResults.length > 0 && (
-              <ScrollView style={styles.searchResults}>
-        {searchResults.map((feature: any, index: number) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.searchResultItem}
-                    onPress={() => selectLocation(feature)}
-                  >
-                    <ThemedText>{feature.properties.formatted}</ThemedText>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+            {isSearchingFor === 'destination' && (
+              <View style={styles.searchResultsContainer}>
+                {isSearching ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={buttonColor} />
+                    <ThemedText style={styles.loadingText}>Searching locations...</ThemedText>
+                  </View>
+                ) : searchResults.length > 0 ? (
+                  <ScrollView style={styles.searchResults}>
+                    {searchResults.map((feature: any, index: number) => (
+                      <TouchableOpacity
+                        key={`dest-${index}`}
+                        style={styles.searchResultItem}
+                        onPress={() => selectLocation(feature)}
+                      >
+                        <ThemedText style={styles.searchResultName}>{feature.properties.formatted}</ThemedText>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                ) : destQuery.length > 1 ? (
+                  <View style={styles.noResultsContainer}>
+                    <ThemedText style={styles.noResultsText}>No locations found</ThemedText>
+                  </View>
+                ) : null}
+              </View>
             )}
             
             {/* Bike Type Selection */}
@@ -306,14 +362,28 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
   },
+  searchResultsContainer: {
+    marginTop: 5,
+    marginBottom: 10,
+  },
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 10,
+    justifyContent: 'center',
   },
   loadingText: {
     marginLeft: 10,
     fontSize: 14,
     color: '#666',
+  },
+  noResultsContainer: {
+    padding: 10,
+    alignItems: 'center',
+  },
+  noResultsText: {
+    color: '#666',
+    fontStyle: 'italic',
   },
   searchButtonText: {
     color: '#FFFFFF',
@@ -380,11 +450,17 @@ const styles = StyleSheet.create({
   searchResults: {
     maxHeight: 200,
     marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#EEEEEE',
+    borderRadius: 5,
   },
   searchResultItem: {
-    padding: 10,
+    padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
+  },
+  searchResultName: {
+    fontSize: 14,
   },
   buttonContainer: {
     flexDirection: 'row',

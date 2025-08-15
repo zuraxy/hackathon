@@ -80,6 +80,47 @@ export const geocodeLocation = async (query: string) => {
   }
 };
 
+export const autocompleteLocation = async (
+  query: string,
+  options?: {
+    focusPoint?: { lat: number; lon: number };
+    countryCode?: string;
+    limit?: number;
+  }
+) => {
+  try {
+    if (!query || query.length < 2) return [];
+
+    // Build the URL with query parameters
+    let url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(query)}&format=json&apiKey=${GEOAPIFY_PLACES_API_KEY}`;
+    
+    // Add optional focus point (makes results near the current location more relevant)
+    if (options?.focusPoint) {
+      url += `&bias=proximity:${options.focusPoint.lon},${options.focusPoint.lat}`;
+    }
+    
+    // Add optional country filter
+    if (options?.countryCode) {
+      url += `&filter=countrycode:${options.countryCode}`;
+    }
+    
+    // Add limit parameter (default to 5 if not specified)
+    url += `&limit=${options?.limit || 5}`;
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Autocomplete API returned status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.results || [];
+  } catch (error) {
+    console.error('Error autocompleting location:', error);
+    throw error;
+  }
+};
+
 // Parse POI data from different sources
 export const parsePOI = (properties: any): POI => {
   return {
