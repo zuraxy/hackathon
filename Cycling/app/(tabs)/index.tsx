@@ -221,9 +221,25 @@ export default function HomeScreen() {
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 20, paddingHorizontal: 20, zIndex: 1200 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <View style={{ flex: 0.48 }}>
+                <TouchableOpacity
+                  style={{ backgroundColor: '#ffffff', padding: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#ddd' }}
+                  onPress={() => {
+                    // Cancel the active route entirely
+                    setRouteInfo(null);
+                    setDestinationLocation(undefined);
+                    setDestinationName(undefined);
+                    setSelectedPoi(null);
+                  }}
+                >
+                  <ThemedText style={{ color: '#d32f2f', fontWeight: '700' }}>Cancel Route</ThemedText>
+                </TouchableOpacity>
+              </View>
+              <View style={{ flex: 0.48 }}>
                 <TouchableOpacity style={{ backgroundColor: '#ffffff', padding: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#ddd' }} onPress={() => {
-                  // reopen planner and clear route info so user can edit plan
+                  // Reopen planner and clear current route/destination so user can edit plan
                   setRouteInfo(null);
+                  setDestinationLocation(undefined);
+                  setDestinationName(undefined);
                   if (routeSearchRef && (routeSearchRef as any).current && (routeSearchRef as any).current.open) {
                     (routeSearchRef as any).current.open();
                   }
@@ -256,6 +272,43 @@ export default function HomeScreen() {
           )}
         </View>
       )}
+
+      {/* Quick Hazard Report buttons */}
+      <View style={{ position: 'absolute', right: 16, bottom: 100, gap: 8, zIndex: 1300 }}>
+        <TouchableOpacity
+          style={{ backgroundColor: '#e53935', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 20, alignItems: 'center' }}
+          onPress={() => {
+            setHazards(prev => [
+              ...prev,
+              { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Accident', description: 'User reported accident' },
+            ]);
+          }}
+        >
+          <ThemedText style={{ color: '#fff', fontWeight: '700' }}>Report Accident</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ backgroundColor: '#1e88e5', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 20, alignItems: 'center' }}
+          onPress={() => {
+            setHazards(prev => [
+              ...prev,
+              { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Flooding', description: 'User reported flooding' },
+            ]);
+          }}
+        >
+          <ThemedText style={{ color: '#fff', fontWeight: '700' }}>Report Flooding</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={{ backgroundColor: '#fb8c00', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 20, alignItems: 'center' }}
+          onPress={() => {
+            setHazards(prev => [
+              ...prev,
+              { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Construction', description: 'User reported construction' },
+            ]);
+          }}
+        >
+          <ThemedText style={{ color: '#fff', fontWeight: '700' }}>Report Construction</ThemedText>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

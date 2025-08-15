@@ -88,6 +88,22 @@ const MapView: React.FC<MapViewProps> = ({
     }
   }, [sourceLocation, destinationLocation, bikeType, hazards]);
 
+  // When destination is cleared, instruct WebView to clear the current route
+  useEffect(() => {
+    if (webViewRef.current && !destinationLocation) {
+      const message = JSON.stringify({ type: 'clearRoute' });
+      webViewRef.current.postMessage(message);
+    }
+  }, [destinationLocation]);
+
+  // Push hazard updates to the WebView even when no route is active
+  useEffect(() => {
+    if (webViewRef.current) {
+      const message = JSON.stringify({ type: 'updateHazards', hazards });
+      webViewRef.current.postMessage(message);
+    }
+  }, [hazards]);
+
   const handleMessage = (event: any) => {
     try {
       console.log('Received message from WebView:', event.nativeEvent.data);
@@ -387,7 +403,9 @@ const MapView: React.FC<MapViewProps> = ({
         // Markers for source, destination
         let sourceMarker = null;
         let destinationMarker = null;
-        let routeLayer = null;
+  let routeLayer = null;
+  let routeBackgroundLayer = null;
+  let routeArrowDecorator = null;
         let hazardMarkers = [];
         let poiMarkers = [];
 
@@ -486,7 +504,7 @@ const MapView: React.FC<MapViewProps> = ({
             const formattedLat = parseFloat(lat).toFixed(6);
             
             // Use Geoapify Places API to find POIs
-            const url = \`https://api.geoapify.com/v2/places?categories=\${types.join(',')}&filter=circle:\${formattedLon},\${formattedLat},\${radius}&bias=proximity:\${formattedLon},\${formattedLat}&limit=20&apiKey=${'2dc1fc92bcd6458c808f076380df5d36'}\`;
+            const url = \`https://api.geoapify.com/v2/places?categories=\${types.join(',')}&filter=circle:\${formattedLon},\${formattedLat},\${radius}&bias=proximity:\${formattedLon},\${formattedLat}&limit=20&apiKey=${'a324d4a77fbc42d0833e1f790c02db81'}\`;
             
             debugLog('Fetching POIs with URL: ' + url.replace(/apiKey=([^&]*)/, 'apiKey=API_KEY_HIDDEN'));
             
@@ -532,7 +550,59 @@ const MapView: React.FC<MapViewProps> = ({
         }
         
         // Helper function to add a POI marker
-        
+  function addPOIMarker(properties) {
+          try {
+            const { lat, lon, name, address_line1, categories } = properties;
+            const displayName = name || 'POI';
+            const address = address_line1 || '';
+            const category = Array.isArray(categories) && categories.length ? categories[0] : 'poi';
+
+            const poiIcon = L.divIcon({
+              className: 'poi-marker',
+              html: '<div class="poi-icon">📍</div>',
+              iconSize: [32, 32]
+            });
+
+            const marker = L.marker([lat, lon], { icon: poiIcon }).addTo(map);
+            // Build popup using normal string concatenation to avoid nested template-literal issues
+            var popupHtml = '';
+            popupHtml += '<div>';
+            popupHtml += '<div style="font-weight:600; margin-bottom:4px;">' + (displayName || 'POI') + '</div>';
+            if (address) {
+              popupHtml += '<div style="font-size:12px; color:#555; margin-bottom:8px;">' + address + '</div>';
+            }
+            var btnId = 'poi-go-btn-' + Math.random().toString(36).slice(2);
+            popupHtml += '<button id="' + btnId + '" class="poi-popup-button">Go</button>';
+            popupHtml += '</div>';
+            marker.bindPopup(popupHtml);
+            marker.on('popupopen', () => {
+              // Attach click handler to send selection back to RN
+              const btn = document.getElementById(btnId);
+              if (btn) {
+                btn.onclick = function() {
+                  try {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                      type: 'poiSelected',
+                      poi: {
+                        name: displayName,
+                        address: address,
+                        category: category,
+                        lat: lat,
+                        lon: lon
+                      }
+                    }));
+                  } catch (e) {
+                    console.error('Failed to send poiSelected:', e);
+                  }
+                };
+              }
+            });
+
+            poiMarkers.push(marker);
+          } catch (e) {
+            debugLog('Failed to add POI marker: ' + e.message);
+          }
+        }
 
         // Function to fetch and display route
         async function fetchRoute(source, destination, bikeType, hazards = []) {
@@ -691,7 +761,8 @@ const MapView: React.FC<MapViewProps> = ({
               // Draw route on map with bike-specific styling and enhanced visibility
               
               // First add a wider background line for a "glow" effect
-              const routeBackground = L.polyline(latLngs, {
+              // store background layer so we can clear it later
+              routeBackgroundLayer = L.polyline(latLngs, {
                 color: 'white',
                 weight: 10, // Wider background for glow effect
                 opacity: 0.5,
@@ -710,7 +781,8 @@ const MapView: React.FC<MapViewProps> = ({
               }).addTo(map);
               
               // Add enhanced animated arrow decorators to show direction
-              const arrowDecorator = L.polylineDecorator(routeLayer, {
+              // store arrow decorator so we can clear it later
+              routeArrowDecorator = L.polylineDecorator(routeLayer, {
                 patterns: [
                   {
                     offset: '5%',
@@ -817,6 +889,22 @@ const MapView: React.FC<MapViewProps> = ({
             searchNearbyPOIs(data.center.lat, data.center.lon, 3000);
           } else if (data.type === 'searchPOIs') {
             searchNearbyPOIs(data.lat, data.lon, data.radius || 3000, data.types);
+          } else if (data.type === 'clearRoute') {
+            try {
+              if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+              if (routeBackgroundLayer) { map.removeLayer(routeBackgroundLayer); routeBackgroundLayer = null; }
+              if (routeArrowDecorator) { map.removeLayer(routeArrowDecorator); routeArrowDecorator = null; }
+              if (destinationMarker) { map.removeLayer(destinationMarker); destinationMarker = null; }
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'debug', message: 'Route cleared' }));
+            } catch (e) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Failed to clear route: ' + e.message }));
+            }
+          } else if (data.type === 'updateHazards') {
+            try {
+              addHazardMarkers(data.hazards || []);
+            } catch (e) {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Failed to update hazards: ' + e.message }));
+            }
           }
         });
 
