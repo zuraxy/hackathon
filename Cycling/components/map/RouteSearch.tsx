@@ -226,7 +226,7 @@ const RouteSearch = forwardRef<any, RouteSearchProps>(function RouteSearch({
               <View style={styles.searchResultsContainer}>
                 {isSearching ? (
                   <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color={buttonColor} />
+                    <ActivityIndicator size="small" color="#00c853" />
                     <ThemedText style={styles.loadingText}>Searching locations...</ThemedText>
                   </View>
                 ) : searchResults.length > 0 ? (
@@ -273,7 +273,7 @@ const RouteSearch = forwardRef<any, RouteSearchProps>(function RouteSearch({
               <View style={styles.searchResultsContainer}>
                 {isSearching ? (
                   <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color={buttonColor} />
+                    <ActivityIndicator size="small" color="#00c853" />
                     <ThemedText style={styles.loadingText}>Searching locations...</ThemedText>
                   </View>
                 ) : searchResults.length > 0 ? (
@@ -478,9 +478,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E8F5E9',
-  },
-  searchResultName: {
-    fontSize: 14,
   },
   searchResultName: {
     fontSize: 14,

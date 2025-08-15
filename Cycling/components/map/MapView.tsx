@@ -6,6 +6,7 @@ import LocationDisplay from './LocationDisplay';
 import { searchNearbyPOIs, reverseGeocode } from '@/services/map-fetching';
 import { fetchRoute, extractRouteInfo, Hazard, Location } from '@/services/routing';
 import { getHazardsNearLocation } from '@/services/userfetching';
+import * as ExpoLocation from 'expo-location';
 
 // Geoapify API key for map tiles only
 const GEOAPIFY_API_KEY = '1393d8eed4394d73b1d5557754d1c824'; // For map tiles
@@ -41,6 +42,8 @@ const MapView: React.FC<MapViewProps> = ({
   const webViewRef = useRef<WebView>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const locationWatchRef = useRef<ExpoLocation.LocationSubscription | null>(null);
+  const lastRouteUpdateRef = useRef<number>(0);
 
   useEffect(() => {
     if (webViewRef.current && sourceLocation) {
@@ -127,6 +130,78 @@ const MapView: React.FC<MapViewProps> = ({
       console.error('Failed to parse WebView message:', e);
     }
   };
+
+  // Subscribe to foreground location updates and push them to the WebView every few seconds
+  useEffect(() => {
+    let isMounted = true;
+
+    async function startLocationWatch() {
+      try {
+        const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          if (isMounted) setError('Location permission not granted');
+          return;
+        }
+
+        // Start watching position with a modest interval/distance to save battery
+        locationWatchRef.current = await ExpoLocation.watchPositionAsync(
+          {
+            // Balanced accuracy is usually enough for cycling; use High for tighter tracking
+            accuracy: ExpoLocation.Accuracy.Balanced,
+            timeInterval: 3000, // every ~3 seconds
+            distanceInterval: 5, // or every 5 meters, whichever comes first
+          },
+          (position) => {
+            if (!isMounted) return;
+            const { latitude, longitude } = position.coords;
+
+            // Update map center and source marker
+            if (webViewRef.current) {
+              webViewRef.current.postMessage(
+                JSON.stringify({
+                  type: 'updateCenter',
+                  center: { lat: latitude, lon: longitude },
+                })
+              );
+            }
+
+            // If we have a destination, refresh the route occasionally
+            const now = Date.now();
+            const minRouteUpdateMs = 5000; // avoid spamming route requests
+            if (
+              destinationLocation &&
+              webViewRef.current &&
+              now - lastRouteUpdateRef.current > minRouteUpdateMs
+            ) {
+              lastRouteUpdateRef.current = now;
+              webViewRef.current.postMessage(
+                JSON.stringify({
+                  type: 'updateRoute',
+                  source: { lat: latitude, lon: longitude },
+                  destination: destinationLocation,
+                  bikeType,
+                  hazards,
+                })
+              );
+            }
+          }
+        );
+      } catch (e: any) {
+        console.error('Failed to start location watcher:', e);
+        if (isMounted) setError(e?.message || 'Failed to start location watcher');
+      }
+    }
+
+    startLocationWatch();
+
+    return () => {
+      isMounted = false;
+      try {
+        locationWatchRef.current?.remove();
+      } catch {}
+      locationWatchRef.current = null;
+    };
+  }, [destinationLocation, bikeType, hazards]);
 
   // HTML content for the WebView with Leaflet map
   const htmlContent = `
