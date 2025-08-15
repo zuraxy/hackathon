@@ -19,7 +19,7 @@ const RouteInfo: React.FC<RouteInfoProps> = ({ routeInfo, onClose, destination }
     return null;
   }
 
-  const { distance, time, difficulty } = extractRouteInfo(routeInfo);
+  const { distance, time, difficulty } = extractRouteInfoUI(routeInfo);
 
   return (
     <View style={styles.container}>
@@ -56,7 +56,7 @@ const RouteInfo: React.FC<RouteInfoProps> = ({ routeInfo, onClose, destination }
   );
 };
 
-function extractRouteInfo(routeInfo: any) {
+function extractRouteInfoUI(routeInfo: any) {
   // Debug the route info structure
   console.log('RouteInfo structure:', routeInfo && typeof routeInfo === 'object' ? 
     Object.keys(routeInfo) : 'Invalid routeInfo');

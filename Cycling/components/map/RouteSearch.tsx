@@ -4,6 +4,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import LocationDisplay from './LocationDisplay';
+import { geocodeLocation, reverseGeocode } from '@/services/map-fetching';
 
 interface RouteSearchProps {
   onSearch: (source: { lat: number; lon: number }, destination: { lat: number; lon: number }, bikeType: string) => void;
@@ -44,20 +45,16 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
   useEffect(() => {
     if (defaultSource && defaultSource.lat && defaultSource.lon && 
         (defaultSource.lat !== 14.5995 || defaultSource.lon !== 120.9842)) {
-      reverseGeocode(defaultSource.lat, defaultSource.lon);
+      handleReverseGeocode(defaultSource.lat, defaultSource.lon);
     }
   }, [defaultSource]);
 
-  const reverseGeocode = async (lat: number, lon: number) => {
+  const handleReverseGeocode = async (lat: number, lon: number) => {
     try {
       setIsLoadingAddress(true);
-      const response = await fetch(
-        `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lon}&apiKey=a324d4a77fbc42d0833e1f790c02db81`
-      );
-      const data = await response.json();
+      const address = await reverseGeocode(lat, lon);
       
-      if (data.features && data.features.length > 0) {
-        const address = data.features[0].properties.formatted;
+      if (address) {
         setSource({
           name: address || 'Current Location',
           coords: defaultSource
@@ -81,13 +78,10 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
     if (query.length < 3) return;
 
     try {
-      const response = await fetch(
-        `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(query)}&apiKey=a324d4a77fbc42d0833e1f790c02db81`
-      );
-      const data = await response.json();
+      const features = await geocodeLocation(query);
       
-      if (data.features && data.features.length > 0) {
-        setSearchResults(data.features.slice(0, 5));
+      if (features && features.length > 0) {
+        setSearchResults(features.slice(0, 5));
       } else {
         setSearchResults([]);
       }
