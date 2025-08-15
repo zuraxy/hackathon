@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Cycling",
-    "slug": "Cycling",
+    "name": "CycleWaze",
+    "slug": "cyclewaze",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

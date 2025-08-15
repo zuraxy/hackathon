@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { Collapsible } from '@/components/Collapsible';
 import { ExternalLink } from '@/components/ExternalLink';
@@ -8,89 +8,87 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
-export default function TabTwoScreen() {
+export default function ExploreScreen() {
   return (
     <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
+      headerBackgroundColor={{ light: '#4CAF50', dark: '#1B5E20' }}
       headerImage={
         <IconSymbol
           size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
+          color="#2E7D32"
+          name="bicycle"
           style={styles.headerImage}
         />
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
+        <ThemedText type="title">About CycleWaze</ThemedText>
       </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
+      <ThemedText>Your intelligent cycling route planner for safer and more enjoyable rides</ThemedText>
+      
+      <Collapsible title="How It Works">
         <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
+          CycleWaze provides real-time cycling routes optimized for different bike types while
+          helping you avoid hazards reported by other cyclists.
         </ThemedText>
+        <ThemedText style={styles.spaced}>
+          Key features:
+        </ThemedText>
+        <ThemedText>• Bike-specific routing (road, mountain, regular, electric)</ThemedText>
+        <ThemedText>• Real-time hazard reports from the cycling community</ThemedText>
+        <ThemedText>• Automatic route adjustment to avoid hazards</ThemedText>
+      </Collapsible>
+      
+      <Collapsible title="Routing Technology">
         <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
+          CycleWaze uses the Geoapify Routing API to generate optimal cycling routes
+          that are tailored to your specific bike type.
         </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
+        <ThemedText style={styles.spaced}>
+          Different bikes have different needs:
+        </ThemedText>
+        <ThemedText>• Road bikes prefer smooth, paved surfaces</ThemedText>
+        <ThemedText>• Mountain bikes can handle rougher terrain</ThemedText>
+        <ThemedText>• Electric bikes may prioritize different elevation profiles</ThemedText>
+        <ExternalLink href="https://www.geoapify.com/routing-api">
+          <ThemedText type="link">Learn more about Geoapify</ThemedText>
         </ExternalLink>
       </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
+      
+      <Collapsible title="Hazard Reporting">
         <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
+          The strength of CycleWaze comes from our community. Cyclists can report hazards in real-time,
+          helping others avoid dangerous situations.
+        </ThemedText>
+        <ThemedText style={styles.spaced}>
+          Reportable hazards include:
+        </ThemedText>
+        <ThemedText>• Potholes and road damage</ThemedText>
+        <ThemedText>• Construction zones</ThemedText>
+        <ThemedText>• Accidents or traffic incidents</ThemedText>
+        <ThemedText>• Glass or debris on the road</ThemedText>
+        <ThemedText>• Flooding or weather-related issues</ThemedText>
+      </Collapsible>
+      
+      <Collapsible title="Real-Time Route Adjustments">
+        <ThemedText>
+          When a new hazard is reported along your route, CycleWaze can automatically
+          suggest alternate paths to keep you safe and moving.
+        </ThemedText>
+        <ThemedText>
+          This demo simulates hazard reports to show how routes can be dynamically updated
+          to avoid dangerous areas.
         </ThemedText>
       </Collapsible>
-      <Collapsible title="Images">
+      
+      <Collapsible title="For HackerCup">
         <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
+          This app was created by DLSU students for the HackerCup hackathon. We believe that
+          cycling deserves the same level of navigation intelligence that drivers enjoy.
         </ThemedText>
-        <Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Custom fonts">
-        <ThemedText>
-          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
-          <ThemedText style={{ fontFamily: 'SpaceMono' }}>
-            custom fonts such as this one.
-          </ThemedText>
+        <ThemedText style={styles.spaced}>
+          Our vision is to create a platform that Strava might want to incorporate into their
+          ecosystem, improving safety and route optimization for cyclists worldwide.
         </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
       </Collapsible>
     </ParallaxScrollView>
   );
@@ -98,7 +96,7 @@ export default function TabTwoScreen() {
 
 const styles = StyleSheet.create({
   headerImage: {
-    color: '#808080',
+    color: '#2E7D32',
     bottom: -90,
     left: -35,
     position: 'absolute',
@@ -106,5 +104,10 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     gap: 8,
+  },
+  spaced: {
+    marginTop: 10,
+    marginBottom: 4,
+    fontWeight: 'bold',
   },
 });

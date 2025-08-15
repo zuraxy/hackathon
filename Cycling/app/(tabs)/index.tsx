@@ -1,75 +1,263 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
+import { useState, useEffect } from 'react';
+import { StyleSheet, View, Alert, Text } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import * as Location from 'expo-location';
 import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+
+import MapView from '@/components/map/MapView';
+import HazardInput from '@/components/map/HazardInput';
+import RouteSearch from '@/components/map/RouteSearch';
+import RouteInfo from '@/components/map/RouteInfo';
 
 export default function HomeScreen() {
+  // Default to Manila, but will try to get actual location
+  const [currentLocation, setCurrentLocation] = useState({ lat: 14.5995, lon: 120.9842 });
+  const [locationPermission, setLocationPermission] = useState(false);
+  const [isLocating, setIsLocating] = useState(true);
+  const [currentLocationName, setCurrentLocationName] = useState<string | undefined>(undefined);
+  
+  // Remove the default destination to avoid route errors initially
+  const [destinationLocation, setDestinationLocation] = useState<{ lat: number; lon: number } | undefined>(undefined);
+  const [destinationName, setDestinationName] = useState<string | undefined>(undefined);
+  const [bikeType, setBikeType] = useState('regular');
+  const [selectedPoi, setSelectedPoi] = useState<any>(null);
+  const [hazards, setHazards] = useState<Array<{
+    lat: number;
+    lon: number;
+    type: string;
+    description: string;
+  }>>([]);
+  const [routeInfo, setRouteInfo] = useState<any>(null);
+
+  // Example hazards - in a real app, these would come from a server
+  const exampleHazards = [
+    {
+      lat: 14.6015,
+      lon: 120.9802,
+      type: 'Construction',
+      description: 'Road work in progress, narrow lane'
+    },
+    {
+      lat: 14.5975,
+      lon: 120.9822,
+      type: 'Pothole',
+      description: 'Large pothole on right side of road'
+    },
+    {
+      lat: 14.6035,
+      lon: 120.9842,
+      type: 'Glass/Debris',
+      description: 'Broken glass on bike lane'
+    },
+    {
+      lat: 14.5955,
+      lon: 120.9872,
+      type: 'Flooding',
+      description: 'Road partially flooded after rain'
+    }
+  ];
+
+  // Request permission and get location
+  useEffect(() => {
+    (async () => {
+      try {
+        // Request permission to access location
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        setLocationPermission(status === 'granted');
+        
+        if (status !== 'granted') {
+          Alert.alert(
+            'Location Permission Denied',
+            'CycleWaze needs your location to provide navigation. You can enable location services in your device settings.',
+            [{ text: 'OK' }]
+          );
+          setIsLocating(false);
+          return;
+        }
+
+        // Get current location
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Highest,
+        });
+        
+        console.log('Got actual location:', location.coords);
+        
+        // Update location
+        setCurrentLocation({
+          lat: location.coords.latitude,
+          lon: location.coords.longitude,
+        });
+        
+        // Get address from coordinates
+        try {
+          const response = await fetch(
+            `https://api.geoapify.com/v1/geocode/reverse?lat=${location.coords.latitude}&lon=${location.coords.longitude}&apiKey=a324d4a77fbc42d0833e1f790c02db81`
+          );
+          const data = await response.json();
+          
+          if (data.features && data.features.length > 0) {
+            const address = data.features[0].properties.formatted;
+            setCurrentLocationName(address);
+          }
+        } catch (error) {
+          console.error('Error reverse geocoding:', error);
+        }
+      } catch (error) {
+        console.error('Error getting location:', error);
+        Alert.alert(
+          'Location Error',
+          'Failed to get your current location. Using default location instead.',
+          [{ text: 'OK' }]
+        );
+      } finally {
+        setIsLocating(false);
+      }
+    })();
+  }, []);
+
+  // Load example hazards
+  useEffect(() => {
+    // In a real app, would fetch real hazards near the user's location
+    const timer = setTimeout(() => {
+      // Adjust hazards to be near the user's actual location
+      const adjustedHazards = exampleHazards.map(hazard => ({
+        ...hazard,
+        lat: currentLocation.lat + (hazard.lat - 14.5995),
+        lon: currentLocation.lon + (hazard.lon - 120.9842)
+      }));
+      setHazards(adjustedHazards);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [currentLocation]);
+
+  const handleAddHazard = (hazard: {
+    lat: number;
+    lon: number;
+    type: string;
+    description: string;
+  }) => {
+    setHazards([...hazards, hazard]);
+  };
+
+  const handleRouteSearch = (
+    source: { lat: number; lon: number },
+    destination: { lat: number; lon: number },
+    biketype: string
+  ) => {
+    setCurrentLocation(source);
+    setDestinationLocation(destination);
+    setBikeType(biketype);
+    setSelectedPoi(null); // Clear any selected POI when manually searching
+  };
+
+  const handleRouteChange = (route: any) => {
+    setRouteInfo(route);
+  };
+  
+  const handlePoiSelected = (poi: any) => {
+    console.log('POI selected in main app:', poi);
+    setSelectedPoi(poi);
+    setDestinationName(poi.name);
+    setDestinationLocation({
+      lat: poi.lat,
+      lon: poi.lon
+    });
+    
+    // Show route info when POI is selected
+    if (routeInfo) {
+      // Leave the current route info visible if it exists
+      // It will be updated when the route is calculated
+    }
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <View style={styles.container}>
+      <StatusBar style="auto" />
+      
+      <MapView
+        sourceLocation={currentLocation}
+        destinationLocation={destinationLocation}
+        bikeType={bikeType as 'road' | 'mountain' | 'regular' | 'electric'}
+        hazards={hazards}
+        onRouteChange={handleRouteChange}
+        isLoadingLocation={isLocating}
+        locationName={currentLocationName}
+        onPoiSelected={handlePoiSelected}
+      />
+      
+      <RouteSearch 
+        onSearch={handleRouteSearch}
+        defaultSource={currentLocation}
+      />
+      
+      <HazardInput
+        onAddHazard={handleAddHazard}
+        currentLocation={currentLocation}
+        locationName={currentLocationName}
+      />
+      
+      {routeInfo && (
+        <RouteInfo 
+          routeInfo={routeInfo} 
+          onClose={() => {
+            setRouteInfo(null);
+            if (selectedPoi) {
+              setSelectedPoi(null);
+            }
+          }}
+          destination={destinationName}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      )}
+      
+      {selectedPoi && !routeInfo && (
+        <View style={styles.poiToastContainer}>
+          <ThemedText style={styles.poiToastText}>
+            Routing to: {selectedPoi.name || 'Selected location'}
+          </ThemedText>
+          {selectedPoi.category && (
+            <ThemedText style={styles.poiToastSubtext}>
+              {selectedPoi.category.charAt(0).toUpperCase() + selectedPoi.category.slice(1)}
+              {selectedPoi.address ? ` • ${selectedPoi.address}` : ''}
+            </ThemedText>
+          )}
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  poiToastContainer: {
     position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: '#1976D2',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    opacity: 0.9,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  poiToastText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  poiToastSubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    marginTop: 4,
   },
 });

@@ -1,50 +1,58 @@
-# Welcome to your Expo app 👋
+# CycleWaze - Intelligent Cycling Routes
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+CycleWaze is an innovative cycling route planner app created by DLSU students for the HackerCup hackathon. Think of it as "Waze but for Strava" - providing intelligent route planning specifically designed for cyclists.
 
-## Get started
+## 🚲 Features
+
+- **Bike-Specific Routes**: Optimized routes based on bike type (road, mountain, regular, electric)
+- **Real-Time Hazard Reporting**: Community-powered hazard reporting system
+- **Dynamic Route Adjustments**: Automatic route recalculation based on reported hazards
+- **Interactive Map Interface**: Built with Leaflet and Geoapify
+
+## 💡 Project Concept
+
+While apps like Strava and Google Maps provide cycling directions, they don't offer the real-time hazard reporting and route adjustment that drivers enjoy with apps like Waze. CycleWaze fills this gap by creating a cycling-specific navigation platform that prioritizes safety and optimal routing based on the specific type of bicycle being used.
+
+## 🛠️ Technology Stack
+
+- **Frontend**: React Native with Expo
+- **Mapping**: Leaflet with Geoapify map tiles
+- **Routing**: Geoapify Routing API
+- **Styling**: Custom-themed UI components
+
+## 🏃‍♂️ Getting Started
 
 1. Install dependencies
-
    ```bash
    npm install
    ```
 
 2. Start the app
-
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. Use the Expo Go app or emulator to view the application
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🔑 API Keys
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+The app uses the Geoapify API for mapping and routing functionality. The current API key is included for demonstration purposes.
 
-## Get a fresh project
+## 📱 App Workflow
 
-When you're ready, run:
+1. Plan your route by selecting source, destination and bike type
+2. View the optimal route on the map
+3. Report hazards you encounter along the way
+4. Benefit from automatic route recalculations when hazards are reported
 
-```bash
-npm run reset-project
-```
+## 🏆 HackerCup Hackathon
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+This project was created for the HackerCup hackathon by 2nd year students from De La Salle University. Our vision is to create a platform that could potentially be acquired by Strava or similar services to enhance the cycling experience worldwide.
 
-## Learn more
+## 👥 Team Members
 
-To learn more about developing your project with Expo, look at the following resources:
+- [Team member names go here]
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 🔮 Future Vision
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+We envision CycleWaze becoming an essential tool for the cycling community, enhancing safety and route optimization for cyclists of all levels. The platform could eventually integrate with fitness tracking features, cycling communities, and bike-sharing services.
