@@ -77,7 +77,7 @@ const HazardInput: React.FC<HazardInputProps> = ({ onAddHazard, currentLocation,
         style={[styles.reportButton, { backgroundColor: buttonColor }]}
         onPress={() => setModalVisible(true)}
       >
-        <ThemedText style={styles.reportButtonText}>Report Hazard</ThemedText>
+        <ThemedText style={styles.reportButtonText}>⚠️</ThemedText>
       </TouchableOpacity>
 
       <Modal
@@ -157,9 +157,11 @@ const HazardInput: React.FC<HazardInputProps> = ({ onAddHazard, currentLocation,
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
+  position: 'absolute',
+  bottom: 76,
+  left: 20,
+  right: 20,
+  zIndex: 950,
   },
   reportButton: {
     paddingHorizontal: 16,
@@ -170,10 +172,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    justifyContent: ''
   },
   reportButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+  color: '#FFFFFF',
+  fontWeight: 'bold',
   },
   modalOverlay: {
     flex: 1,

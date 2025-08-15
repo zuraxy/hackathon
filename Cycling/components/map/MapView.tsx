@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Dimensions, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { ThemedText } from '@/components/ThemedText';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { WebView } from 'react-native-webview';
 import LocationDisplay from './LocationDisplay';
 
 // Geoapify API keys
@@ -13,12 +13,12 @@ interface MapViewProps {
   sourceLocation?: { lat: number; lon: number };
   destinationLocation?: { lat: number; lon: number };
   bikeType?: 'road' | 'mountain' | 'regular' | 'electric';
-  hazards?: Array<{
+  hazards?: {
     lat: number;
     lon: number;
     type: string;
     description: string;
-  }>;
+  }[];
   onRouteChange?: (newRoute: any) => void;
   isLoadingLocation?: boolean;
   locationName?: string;
@@ -253,10 +253,11 @@ const MapView: React.FC<MapViewProps> = ({
         let map;
         try {
           map = L.map('map', {
-            zoomControl: true,
+            // hide built-in zoom controls because the map is draggable; we'll provide a compass instead
+            zoomControl: false,
             attributionControl: true,
             center: [${sourceLocation.lat}, ${sourceLocation.lon}],
-            zoom: 13
+            zoom: 16
           });
           debugLog('Map object created');
         } catch (e) {
@@ -271,23 +272,7 @@ const MapView: React.FC<MapViewProps> = ({
         }).addTo(map);
         
         // Try to add Geoapify map tiles for cycling
-        try {
-          const geoapifyTileLayer = L.tileLayer('https://maps.geoapify.com/v1/tile/osm-bright/{z}/{x}/{y}.png?apiKey=${GEOAPIFY_API_KEY}', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors, © Geoapify'
-          });
-          
-          // Add layer control
-          const baseMaps = {
-            "Standard": osmTileLayer,
-            "Geoapify": geoapifyTileLayer
-          };
-          
-          L.control.layers(baseMaps).addTo(map);
-        } catch (e) {
-          debugLog('Failed to load Geoapify tiles: ' + e.message);
-          // We already have OSM as fallback
-        }
+        
         
         // Always add a marker for the current location to ensure something is visible
         try {
@@ -299,13 +284,17 @@ const MapView: React.FC<MapViewProps> = ({
         } catch (e) {
           debugLog('Error adding marker: ' + e.message);
         }        // Add legend for bike routes and hazards
-        const legend = L.control({position: 'bottomright'});
+        // Position it on the top-left and push it down so it doesn't overlap the RN location pill
+        const legend = L.control({position: 'topleft'});
         legend.onAdd = function(map) {
           const div = L.DomUtil.create('div', 'info legend');
           div.style.backgroundColor = 'white';
           div.style.padding = '10px';
           div.style.borderRadius = '5px';
           div.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
+          // Push the legend below the RN overlay (location pill). RN pill is at ~60px; use 80px for safe spacing.
+          div.style.marginTop = '120px';
+          div.style.zIndex = '1000';
           
           div.innerHTML = '<h4 style="margin: 0 0 5px 0; font-size: 14px;">CycleWaze Legend</h4>';
           
@@ -422,7 +411,7 @@ const MapView: React.FC<MapViewProps> = ({
             const formattedLat = parseFloat(lat).toFixed(6);
             
             // Use Geoapify Places API to find POIs
-            const url = \`https://api.geoapify.com/v2/places?categories=\${types.join(',')}&filter=circle:\${formattedLon},\${formattedLat},\${radius}&bias=proximity:\${formattedLon},\${formattedLat}&limit=20&apiKey=${GEOAPIFY_PLACES_API_KEY}\`;
+            const url = \`https://api.geoapify.com/v2/places?categories=\${types.join(',')}&filter=circle:\${formattedLon},\${formattedLat},\${radius}&bias=proximity:\${formattedLon},\${formattedLat}&limit=20&apiKey=${'2dc1fc92bcd6458c808f076380df5d36'}\`;
             
             debugLog('Fetching POIs with URL: ' + url);
             
@@ -468,72 +457,7 @@ const MapView: React.FC<MapViewProps> = ({
         }
         
         // Helper function to add a POI marker
-        function addPOIMarker(props) {
-          const lat = props.lat;
-          const lon = props.lon;
-          
-          // Determine icon based on category
-          let poiIcon = '🍴'; // Default restaurant icon
-          if (props.categories.includes('commercial.supermarket')) {
-            poiIcon = '🛒';
-          } else if (props.categories.includes('leisure.park')) {
-            poiIcon = '🌳';
-          } else if (props.categories.includes('catering.cafe')) {
-            poiIcon = '☕';
-          } else if (props.categories.includes('catering.fast_food')) {
-            poiIcon = '🍔';
-          }
-          
-          const marker = L.marker([lat, lon], {
-            icon: L.divIcon({
-              className: 'poi-marker',
-              html: '<div class="poi-icon">' + poiIcon + '</div>',
-              iconSize: [32, 32]
-            })
-          }).addTo(map);
-          
-          // Create popup content using string concatenation instead of template literals
-          const categoryName = props.categories && props.categories[0] ? 
-            props.categories[0].split('.')[1] || 'Place' : 'Place';
-          
-          let popupContent = 
-            '<div>' +
-            '<h3 style="margin: 0 0 5px 0;">' + (props.name || 'Unnamed location') + '</h3>' +
-            '<p style="margin: 0 0 5px 0;">' + (props.address_line1 || '') + '</p>' +
-            '<p style="margin: 0 0 8px 0; font-size: 12px; color: #666;">' + categoryName + '</p>' +
-            '<button class="poi-popup-button">Route to here</button>' +
-            '</div>';
-          
-          const popup = L.popup().setContent(popupContent);
-          marker.bindPopup(popup);
-          
-          // Add click event for the "Route to here" button
-          marker.on('popupopen', function() {
-            setTimeout(() => {
-              const button = document.querySelector('.poi-popup-button');
-              if (button) {
-                button.addEventListener('click', function() {
-                  // Send POI data to React Native
-                  window.ReactNativeWebView.postMessage(JSON.stringify({
-                    type: 'poiSelected',
-                    poi: {
-                      name: props.name || 'Unnamed location',
-                      address: props.address_line1 || '',
-                      category: props.categories && props.categories[0] ? props.categories[0].split('.')[1] || 'Place' : 'Place',
-                      lat: lat,
-                      lon: lon
-                    }
-                  }));
-                  
-                  // Close the popup
-                  marker.closePopup();
-                });
-              }
-            }, 100);
-          });
-          
-          poiMarkers.push(marker);
-        }
+        
 
         // Function to fetch and display route
         async function fetchRoute(source, destination, bikeType, hazards = []) {
@@ -831,63 +755,18 @@ const MapView: React.FC<MapViewProps> = ({
           }));
         });
         
-        // Add POI search control
-        const poiSearchControl = L.control({position: 'topleft'});
-        poiSearchControl.onAdd = function(map) {
-          const div = L.DomUtil.create('div', 'poi-search');
-          div.style.backgroundColor = 'white';
-          div.style.padding = '5px';
-          div.style.borderRadius = '5px';
-          div.style.boxShadow = '0 0 5px rgba(0,0,0,0.2)';
-          
-          const select = document.createElement('select');
-          select.style.padding = '5px';
-          select.style.width = '120px';
-          select.style.borderRadius = '3px';
-          select.style.border = '1px solid #ccc';
-          
-          const options = [
-            { value: 'all', text: 'All Places' },
-            { value: 'restaurant', text: 'Restaurants' },
-            { value: 'cafe', text: 'Cafes' },
-            { value: 'supermarket', text: 'Supermarkets' },
-            { value: 'park', text: 'Parks' }
-          ];
-          
-          options.forEach(opt => {
-            const option = document.createElement('option');
-            option.value = opt.value;
-            option.text = opt.text;
-            select.appendChild(option);
-          });
-          
-          select.addEventListener('change', function() {
-            let types = [];
-            switch(this.value) {
-              case 'restaurant':
-                types = ['catering.restaurant'];
-                break;
-              case 'cafe':
-                types = ['catering.cafe'];
-                break;
-              case 'supermarket':
-                types = ['commercial.supermarket'];
-                break;
-              case 'park':
-                types = ['leisure.park'];
-                break;
-              default:
-                types = ['catering.restaurant', 'catering.cafe', 'commercial.supermarket', 'leisure.park'];
+        // Listen for recenter message from React Native
+        window.addEventListener('message', function(event) {
+          try {
+            const data = JSON.parse(event.data);
+            if (data && data.type === 'recenter') {
+              const center = [${sourceLocation.lat}, ${sourceLocation.lon}];
+              map.setView(center, map.getZoom());
             }
-            
-            const center = map.getCenter();
-            searchNearbyPOIs(center.lat, center.lng, 3000, types);
-          });
-          
-          div.appendChild(select);
-          return div;
-        };
-        poiSearchControl.addTo(map);
+          } catch (e) {
+            console.error('Failed to handle message:', e);
+          }
+        });
         
         // Add welcome message
         const welcomeControl = L.control({position: 'topright'});
@@ -993,8 +872,6 @@ const MapView: React.FC<MapViewProps> = ({
             onPress={() => {
               setError(null);
               setLoading(true);
-              // Force a re-render by changing the key
-              const randomKey = Math.random().toString();
               webViewRef.current?.reload();
             }}
           >
@@ -1101,8 +978,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   locationNameContainer: {
-    position: 'absolute',
-    top: 10,
+  position: 'absolute',
+  top: 60,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -1149,6 +1026,26 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  compassButton: {
+    position: 'absolute',
+    top: 80,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  compassIcon: {
+    fontSize: 20,
   },
 });
 

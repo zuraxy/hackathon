@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { StyleSheet, View, Alert, Text } from 'react-native';
+import { StyleSheet, View, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
 import { ThemedText } from '@/components/ThemedText';
@@ -8,11 +8,40 @@ import MapView from '@/components/map/MapView';
 import HazardInput from '@/components/map/HazardInput';
 import RouteSearch from '@/components/map/RouteSearch';
 import RouteInfo from '@/components/map/RouteInfo';
+import LocationDisplay from '@/components/map/LocationDisplay';
+
+// Example hazards - in a real app, these would come from a server
+const exampleHazards = [
+  {
+    lat: 14.6015,
+    lon: 120.9802,
+    type: 'Construction',
+    description: 'Road work in progress, narrow lane'
+  },
+  {
+    lat: 14.5975,
+    lon: 120.9822,
+    type: 'Pothole',
+    description: 'Large pothole on right side of road'
+  },
+  {
+    lat: 14.6035,
+    lon: 120.9842,
+    type: 'Glass/Debris',
+    description: 'Broken glass on bike lane'
+  },
+  {
+    lat: 14.5955,
+    lon: 120.9872,
+    type: 'Flooding',
+    description: 'Road partially flooded after rain'
+  }
+];
 
 export default function HomeScreen() {
   // Default to Manila, but will try to get actual location
   const [currentLocation, setCurrentLocation] = useState({ lat: 14.5995, lon: 120.9842 });
-  const [locationPermission, setLocationPermission] = useState(false);
+  const [, setLocationPermission] = useState(false);
   const [isLocating, setIsLocating] = useState(true);
   const [currentLocationName, setCurrentLocationName] = useState<string | undefined>(undefined);
   
@@ -21,41 +50,15 @@ export default function HomeScreen() {
   const [destinationName, setDestinationName] = useState<string | undefined>(undefined);
   const [bikeType, setBikeType] = useState('regular');
   const [selectedPoi, setSelectedPoi] = useState<any>(null);
-  const [hazards, setHazards] = useState<Array<{
+  const [hazards, setHazards] = useState<{
     lat: number;
     lon: number;
     type: string;
     description: string;
-  }>>([]);
+  }[]>([]);
   const [routeInfo, setRouteInfo] = useState<any>(null);
 
-  // Example hazards - in a real app, these would come from a server
-  const exampleHazards = [
-    {
-      lat: 14.6015,
-      lon: 120.9802,
-      type: 'Construction',
-      description: 'Road work in progress, narrow lane'
-    },
-    {
-      lat: 14.5975,
-      lon: 120.9822,
-      type: 'Pothole',
-      description: 'Large pothole on right side of road'
-    },
-    {
-      lat: 14.6035,
-      lon: 120.9842,
-      type: 'Glass/Debris',
-      description: 'Broken glass on bike lane'
-    },
-    {
-      lat: 14.5955,
-      lon: 120.9872,
-      type: 'Flooding',
-      description: 'Road partially flooded after rain'
-    }
-  ];
+  
 
   // Request permission and get location
   useEffect(() => {
@@ -185,8 +188,13 @@ export default function HomeScreen() {
         locationName={currentLocationName}
         onPoiSelected={handlePoiSelected}
       />
+      {/* Current Location pill at the top */}
+      {/* <View style={styles.topInfo}>
+        <LocationDisplay locationName={currentLocationName} isLoading={isLocating} />
+      </View> */}
       
-      <RouteSearch 
+      <View>
+        <RouteSearch 
         onSearch={handleRouteSearch}
         defaultSource={currentLocation}
       />
@@ -196,6 +204,7 @@ export default function HomeScreen() {
         currentLocation={currentLocation}
         locationName={currentLocationName}
       />
+      </View>
       
       {routeInfo && (
         <RouteInfo 
@@ -231,6 +240,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  topInfo: {
+    position: 'absolute',
+    top: 20,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+    zIndex: 1000,
   },
   poiToastContainer: {
     position: 'absolute',
