@@ -14,7 +14,7 @@ const GEOAPIFY_API_KEY = '1393d8eed4394d73b1d5557754d1c824'; // For map tiles
 interface MapViewProps {
   sourceLocation?: { lat: number; lon: number };
   destinationLocation?: { lat: number; lon: number };
-  bikeType?: 'road' | 'mountain' | 'regular' | 'electric';
+  bikeType?: 'road' | 'gravel' | 'mountain' | 'regular' | 'electric';
   hazards?: {
     lat: number;
     lon: number;
@@ -30,7 +30,7 @@ interface MapViewProps {
 const MapView: React.FC<MapViewProps> = ({
   sourceLocation = { lat: 14.5995, lon: 120.9842 }, // Default to Manila
   destinationLocation,
-  bikeType = 'regular',
+  bikeType = 'road',
   hazards = [],
   onRouteChange,
   isLoadingLocation = false,
@@ -640,14 +640,20 @@ const MapView: React.FC<MapViewProps> = ({
             // In an ideal implementation, this would pass a message to React Native
             // which would use the service and return the result
             
-            // Define bike profile based on bike type - FIXED to use Geoapify's supported values
+            // Define bike profile and constraints based on bike type
             let profile;
+            let avoidParam = '';
             switch(bikeType) {
               case 'road':
-                profile = 'bicycle';  // Use standard bicycle for road
+                profile = 'bicycle';
+                // Avoid unpaved surfaces for road bikes using supported Geoapify option
+                avoidParam = '&avoid=unpaved';
+                break;
+              case 'gravel':
+                profile = 'bicycle'; // Allow any surfaces
                 break;
               case 'mountain':
-                profile = 'bicycle';  // Use standard bicycle for mountain
+                profile = 'bicycle'; // Allow any surfaces
                 break;
               case 'electric':
                 profile = 'bicycle';  // Use standard bicycle for electric
@@ -667,8 +673,9 @@ const MapView: React.FC<MapViewProps> = ({
               const toLon = parseFloat(destination.lon).toFixed(6);
               const toLat = parseFloat(destination.lat).toFixed(6);
               
-              // FIXED: Using correct coordinate order (lon,lat) and endpoint
-              const url = 'https://api.geoapify.com/v1/routing?waypoints=' + fromLat + ',' + fromLon + '|' + toLat + ',' + toLon + '&mode=' + profile + '&apiKey=2caa374bd15543d18ca2a37f1f36c9c4';
+              // Build base URL (Geoapify expects lat,lon pairs in waypoints for this endpoint)
+              const baseUrl = 'https://api.geoapify.com/v1/routing?waypoints=' + fromLat + ',' + fromLon + '|' + toLat + ',' + toLon + '&mode=' + profile;
+              let url = baseUrl + (avoidParam || '') + '&apiKey=2caa374bd15543d18ca2a37f1f36c9c4';
               
               // Detailed debugging information
               debugLog('Coordinate details:');
@@ -684,15 +691,25 @@ const MapView: React.FC<MapViewProps> = ({
               if (!response.ok) {
                 debugLog('Routing API request failed with status: ' + response.status);
                 
-                // Try to get more details from the error response
-                try {
-                  const errorText = await response.text();
-                  debugLog('Error details: ' + errorText);
-                } catch (textError) {
-                  debugLog('Could not read error details: ' + textError);
+                // If avoid parameters are not supported and resulted in 400, retry without avoid
+                if (response.status === 400 && avoidParam) {
+                  try {
+                    const errText = await response.text();
+                    debugLog('Error details: ' + errText);
+                  } catch {}
+                  debugLog('Retrying routing without avoid parameters...');
+                  url = baseUrl + '&apiKey=2caa374bd15543d18ca2a37f1f36c9c4';
+                  response = await fetch(url);
                 }
-                
-                throw new Error('Routing API failed. Status: ' + response.status);
+
+                // If still not ok after retry (or no retry), throw
+                if (!response.ok) {
+                  try {
+                    const errText = await response.text();
+                    debugLog('Error details: ' + errText);
+                  } catch {}
+                  throw new Error('Routing API failed. Status: ' + response.status);
+                }
               }
               
               data = await response.json();

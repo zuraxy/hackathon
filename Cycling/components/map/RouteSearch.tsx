@@ -31,7 +31,7 @@ const RouteSearch = forwardRef<any, RouteSearchProps>(function RouteSearch({
     name: '',
     coords: { lat: 0, lon: 0 }
   });
-  const [bikeType, setBikeType] = useState('regular');
+  const [bikeType, setBikeType] = useState('road');
   const [sourceQuery, setSourceQuery] = useState('');
   const [destQuery, setDestQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -41,10 +41,9 @@ const RouteSearch = forwardRef<any, RouteSearchProps>(function RouteSearch({
   // Using explicit brand palette colors for modal UI
 
   const bikeTypes = [
-    { id: 'regular', name: 'Regular Bike' },
-    { id: 'road', name: 'Road Bike' },
-    { id: 'mountain', name: 'Mountain Bike' },
-    { id: 'electric', name: 'Electric Bike' }
+    { id: 'road', name: 'Road Bike (paved only)' },
+    { id: 'gravel', name: 'Gravel Bike (any surface)' },
+    { id: 'mountain', name: 'Mountain Bike (any surface)' }
   ];
 
   // Define state for address loading
