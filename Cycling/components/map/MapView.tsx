@@ -410,6 +410,8 @@ const MapView: React.FC<MapViewProps> = ({
         let poiMarkers = [];
 
         // Function to add hazard markers
+        const GEOAPIFY_ICON_API_KEY = '6b263d869c104fc3aa7bf8903cb2c074';
+
         function addHazardMarkers(hazards) {
           // Remove old hazard markers
           hazardMarkers.forEach(marker => map.removeLayer(marker));
@@ -417,40 +419,39 @@ const MapView: React.FC<MapViewProps> = ({
           
           // Add new hazard markers
           hazards.forEach(hazard => {
-            // Get icon based on hazard type
-            let iconSymbol = '!';
-            switch(hazard.type) {
-              case 'Pothole':
-                iconSymbol = '⚠';
-                break;
-              case 'Construction':
-                iconSymbol = '🚧';
-                break;
-              case 'Accident':
-                iconSymbol = '⚠';
-                break;
-              case 'Flooding':
-                iconSymbol = '💧';
-                break;
-              case 'Glass/Debris':
-                iconSymbol = '🔸';
-                break;
-              case 'Heavy Traffic':
-                iconSymbol = '🚶';
-                break;
-              default:
-                iconSymbol = '⚠';
+            // Map hazard type to icon and color for Geoapify icon API
+            let iconName = 'warning';
+            let colorHex = '#e53935'; // red default
+            if (hazard.type === 'Flooding') { iconName = 'waves'; colorHex = '#1e88e5'; }
+            else if (hazard.type === 'Construction') { iconName = 'construction'; colorHex = '#fb8c00'; }
+            else if (hazard.type === 'Accident') { iconName = 'car_crash'; colorHex = '#e53935'; }
+
+            // Build Geoapify icon URL (Material icon set)
+            const colorParam = encodeURIComponent(colorHex);
+            const iconUrl = 'https://api.geoapify.com/v1/icon/?type=material&size=large&color=' + colorParam + '&icon=' + encodeURIComponent(iconName) + '&apiKey=' + GEOAPIFY_ICON_API_KEY;
+
+            let marker;
+            try {
+              const leafletIcon = L.icon({
+                iconUrl,
+                iconSize: [34, 34],
+                iconAnchor: [17, 34],
+                popupAnchor: [0, -28],
+              });
+              marker = L.marker([hazard.lat, hazard.lon], { icon: leafletIcon })
+                .addTo(map)
+                .bindPopup('<b>' + (hazard.type || 'Hazard') + '</b><br>' + (hazard.description || ''));
+            } catch (e) {
+              // Fallback to emoji-based marker if icon fails for any reason
+              const fallbackIcon = L.divIcon({
+                className: 'hazard-marker',
+                html: '<div class="hazard-icon">⚠</div>',
+                iconSize: [24, 24]
+              });
+              marker = L.marker([hazard.lat, hazard.lon], { icon: fallbackIcon })
+                .addTo(map)
+                .bindPopup('<b>' + (hazard.type || 'Hazard') + '</b><br>' + (hazard.description || ''));
             }
-            
-            const hazardIcon = L.divIcon({
-              className: 'hazard-marker',
-              html: '<div class="hazard-icon">' + iconSymbol + '</div>',
-              iconSize: [24, 24]
-            });
-            
-            const marker = L.marker([hazard.lat, hazard.lon], { icon: hazardIcon })
-              .addTo(map)
-              .bindPopup('<b>' + hazard.type + '</b><br>' + hazard.description);
               
             hazardMarkers.push(marker);
           });
