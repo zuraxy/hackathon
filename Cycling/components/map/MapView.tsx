@@ -44,6 +44,8 @@ const MapView: React.FC<MapViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const locationWatchRef = useRef<ExpoLocation.LocationSubscription | null>(null);
   const lastRouteUpdateRef = useRef<number>(0);
+  const [liveHazards, setLiveHazards] = useState<Hazard[]>([]);
+  const lastHazardFetchRef = useRef<number>(0);
 
   useEffect(() => {
     if (webViewRef.current && sourceLocation) {
@@ -74,6 +76,14 @@ const MapView: React.FC<MapViewProps> = ({
     }
   };
 
+  // Merge hazards from props and those fetched live
+  const mergedHazards: Hazard[] = React.useMemo(() => {
+    const key = (h: Hazard) => `${h.type}:${h.lat.toFixed(5)}:${h.lon.toFixed(5)}`;
+    const map = new Map<string, Hazard>();
+    [...(hazards || []), ...(liveHazards || [])].forEach(h => map.set(key(h), h));
+    return Array.from(map.values());
+  }, [hazards, liveHazards]);
+
   useEffect(() => {
     if (webViewRef.current && sourceLocation && destinationLocation) {
       // When source or destination changes, update the route
@@ -82,11 +92,11 @@ const MapView: React.FC<MapViewProps> = ({
         source: sourceLocation,
         destination: destinationLocation,
         bikeType,
-        hazards,
+        hazards: mergedHazards,
       });
       webViewRef.current.postMessage(message);
     }
-  }, [sourceLocation, destinationLocation, bikeType, hazards]);
+  }, [sourceLocation, destinationLocation, bikeType, mergedHazards]);
 
   // When destination is cleared, instruct WebView to clear the current route
   useEffect(() => {
@@ -99,10 +109,10 @@ const MapView: React.FC<MapViewProps> = ({
   // Push hazard updates to the WebView even when no route is active
   useEffect(() => {
     if (webViewRef.current) {
-      const message = JSON.stringify({ type: 'updateHazards', hazards });
+      const message = JSON.stringify({ type: 'updateHazards', hazards: mergedHazards });
       webViewRef.current.postMessage(message);
     }
-  }, [hazards]);
+  }, [mergedHazards]);
 
   const handleMessage = (event: any) => {
     try {
@@ -196,9 +206,19 @@ const MapView: React.FC<MapViewProps> = ({
                   source: { lat: latitude, lon: longitude },
                   destination: destinationLocation,
                   bikeType,
-                  hazards,
+                  hazards: mergedHazards,
                 })
               );
+            }
+
+            // Throttled hazard polling near current location
+            const nowHaz = Date.now();
+            const minHazFetchMs = 30000; // 30s
+            if (nowHaz - lastHazardFetchRef.current > minHazFetchMs) {
+              lastHazardFetchRef.current = nowHaz;
+              getHazardsNearLocation({ lat: latitude, lon: longitude })
+                .then(list => setLiveHazards(list || []))
+                .catch(() => {});
             }
           }
         );
@@ -370,35 +390,7 @@ const MapView: React.FC<MapViewProps> = ({
             .openPopup();
         } catch (e) {
           debugLog('Error adding marker: ' + e.message);
-        }        // Add legend for bike routes and hazards
-        // Position it on the top-left and push it down so it doesn't overlap the RN location pill
-        const legend = L.control({position: 'topleft'});
-        legend.onAdd = function(map) {
-          const div = L.DomUtil.create('div', 'info legend');
-          div.style.backgroundColor = 'white';
-          div.style.padding = '10px';
-          div.style.borderRadius = '5px';
-          div.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
-          // Push the legend below the RN overlay (location pill). RN pill is at ~60px; use 80px for safe spacing.
-          div.style.marginTop = '120px';
-          div.style.zIndex = '1000';
-          
-          div.innerHTML = '<h4 style="margin: 0 0 5px 0; font-size: 14px;">CycleWaze Legend</h4>';
-          
-          // Bike route types
-          div.innerHTML += '<div style="margin-top: 5px; font-size: 12px;"><b>Route Types:</b></div>';
-          div.innerHTML += '<div><span style="display:inline-block; width:12px; height:4px; background-color:#673AB7; margin-right:5px;"></span> Regular Bike</div>';
-          div.innerHTML += '<div><span style="display:inline-block; width:12px; height:4px; background-color:#FF5722; margin-right:5px;"></span> Road Bike</div>';
-          div.innerHTML += '<div><span style="display:inline-block; width:12px; height:4px; background-color:#8BC34A; margin-right:5px;"></span> Mountain Bike</div>';
-          div.innerHTML += '<div><span style="display:inline-block; width:12px; height:4px; background-color:#2196F3; margin-right:5px;"></span> Electric Bike</div>';
-          
-          // Hazard types
-          div.innerHTML += '<div style="margin-top: 8px; font-size: 12px;"><b>Hazards:</b></div>';
-          div.innerHTML += '<div><span style="display:inline-block; width:12px; height:12px; border-radius:50%; background-color:red; margin-right:5px;"></span> Reported Hazards</div>';
-          
-          return div;
-        };
-        legend.addTo(map);
+  }
 
         // Markers for source, destination
         let sourceMarker = null;
@@ -605,8 +597,55 @@ const MapView: React.FC<MapViewProps> = ({
           }
         }
 
-        // Function to fetch and display route
-        async function fetchRoute(source, destination, bikeType, hazards = []) {
+        // Small geo helpers for hazard-route proximity and detours
+        function toRad(x){return x*Math.PI/180;}
+        function haversineMeters(lat1, lon1, lat2, lon2){
+          const R=6371000;
+          const dLat=toRad(lat2-lat1); const dLon=toRad(lon2-lon1);
+          const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+          return 2*R*Math.asin(Math.sqrt(a));
+        }
+        function pointToSegmentMeters(p, v, w){
+          // Approximate on a plane by converting lat/lon to meters using local scale
+          const latScale = 111320; // meters per deg lat
+          const lonScale = 111320 * Math.cos(toRad((v.lat + w.lat)/2));
+          const px = (p.lon - v.lon)*lonScale, py = (p.lat - v.lat)*latScale;
+          const wx = (w.lon - v.lon)*lonScale, wy = (w.lat - v.lat)*latScale;
+          const len2 = wx*wx + wy*wy;
+          if (len2 === 0) return Math.sqrt(px*px + py*py);
+          let t = (px*wx + py*wy)/len2; t = Math.max(0, Math.min(1, t));
+          const projx = wx*t, projy = wy*t;
+          const dx = px - projx, dy = py - projy;
+          return Math.sqrt(dx*dx + dy*dy);
+        }
+        function minDistanceToPolylineMeters(point, latLngs){
+          let min = Infinity;
+          for(let i=0;i<latLngs.length-1;i++){
+            const v = {lat: latLngs[i][0], lon: latLngs[i][1]};
+            const w = {lat: latLngs[i+1][0], lon: latLngs[i+1][1]};
+            const d = pointToSegmentMeters({lat: point.lat, lon: point.lon}, v, w);
+            if (d < min) min = d;
+          }
+          return min;
+        }
+        function routeIntersectsHazards(latLngs, hazards, threshold=60){
+          if (!hazards || !hazards.length || !latLngs || latLngs.length < 2) return false;
+          // Critical hazard types to avoid immediately
+          const critical = new Set(['Flooding','Accident','Construction','Landslide','Road Closure']);
+          for (const hz of hazards){
+            if (!critical.has(hz.type)) continue;
+            const d = minDistanceToPolylineMeters({lat: hz.lat, lon: hz.lon}, latLngs);
+            if (d <= threshold) return true;
+          }
+          return false;
+        }
+        function offsetPoint(lat, lon, dxMeters, dyMeters){
+          const dLat = dyMeters/111320;
+          const dLon = dxMeters/(111320*Math.cos(toRad(lat)));
+          return { lat: lat + dLat, lon: lon + dLon };
+        }
+
+        async function fetchRoute(source, destination, bikeType, hazards = [], _attempt = 0) {
           try {
             // Set up source and destination markers
             if (sourceMarker) map.removeLayer(sourceMarker);
@@ -662,6 +701,33 @@ const MapView: React.FC<MapViewProps> = ({
                 profile = 'bicycle';  // Default to bicycle (the supported Geoapify mode)
             }
             
+            // Keep the latest params for reactive updates
+            window.__currentRouteCtx = { source, destination, bikeType, hazards };
+
+            // Build a function to call routing API with arbitrary waypoints
+            async function requestRoute(waypoints){
+              // waypoints: array of {lat, lon}
+              const from = waypoints[0];
+              const to = waypoints[waypoints.length-1];
+              const pairs = waypoints.map(function(w){ return w.lat.toFixed(6) + ',' + w.lon.toFixed(6); }).join('|');
+              const baseUrl = 'https://api.geoapify.com/v1/routing?waypoints=' + pairs + '&mode=' + profile;
+              let url = baseUrl + (avoidParam || '') + '&apiKey=2caa374bd15543d18ca2a37f1f36c9c4';
+              debugLog('Full routing URL: ' + url.replace(/apiKey=([^&]*)/, 'apiKey=API_KEY_HIDDEN'));
+              let response = await fetch(url);
+              if (!response.ok) {
+                if (response.status === 400 && avoidParam) {
+                  try { await response.text(); } catch {}
+                  url = baseUrl + '&apiKey=2caa374bd15543d18ca2a37f1f36c9c4';
+                  response = await fetch(url);
+                }
+                if (!response.ok) {
+                  try { const t = await response.text(); debugLog('Error details: ' + t); } catch {}
+                  throw new Error('Routing API failed. Status: ' + response.status);
+                }
+              }
+              return response.json();
+            }
+
             // Fetch route from Geoapify Routing API
             let data;
             try {
@@ -673,46 +739,11 @@ const MapView: React.FC<MapViewProps> = ({
               const toLon = parseFloat(destination.lon).toFixed(6);
               const toLat = parseFloat(destination.lat).toFixed(6);
               
-              // Build base URL (Geoapify expects lat,lon pairs in waypoints for this endpoint)
-              const baseUrl = 'https://api.geoapify.com/v1/routing?waypoints=' + fromLat + ',' + fromLon + '|' + toLat + ',' + toLon + '&mode=' + profile;
-              let url = baseUrl + (avoidParam || '') + '&apiKey=2caa374bd15543d18ca2a37f1f36c9c4';
-              
-              // Detailed debugging information
-              debugLog('Coordinate details:');
-              debugLog('Source: lon=' + fromLon + ', lat=' + fromLat + ' (original: lon=' + source.lon + ', lat=' + source.lat + ')');
-              debugLog('Destination: lon=' + toLon + ', lat=' + toLat + ' (original: lon=' + destination.lon + ', lat=' + destination.lat + ')');
-              debugLog('Using mode: ' + profile);
-              debugLog('Full routing URL: ' + url.replace(/apiKey=([^&]*)/, 'apiKey=API_KEY_HIDDEN'));
-              
-              // Make the request to the routing API
-              let response = await fetch(url);
-              
-              // Check if request was successful
-              if (!response.ok) {
-                debugLog('Routing API request failed with status: ' + response.status);
-                
-                // If avoid parameters are not supported and resulted in 400, retry without avoid
-                if (response.status === 400 && avoidParam) {
-                  try {
-                    const errText = await response.text();
-                    debugLog('Error details: ' + errText);
-                  } catch {}
-                  debugLog('Retrying routing without avoid parameters...');
-                  url = baseUrl + '&apiKey=2caa374bd15543d18ca2a37f1f36c9c4';
-                  response = await fetch(url);
-                }
-
-                // If still not ok after retry (or no retry), throw
-                if (!response.ok) {
-                  try {
-                    const errText = await response.text();
-                    debugLog('Error details: ' + errText);
-                  } catch {}
-                  throw new Error('Routing API failed. Status: ' + response.status);
-                }
-              }
-              
-              data = await response.json();
+              // Use generic requestRoute helper
+              data = await requestRoute([
+                { lat: source.lat, lon: source.lon },
+                { lat: destination.lat, lon: destination.lon }
+              ]);
               debugLog('Route data received: ' + JSON.stringify(data).substring(0, 100) + '...');
             } catch (e) {
               debugLog('Error fetching route: ' + e.message);
@@ -759,6 +790,64 @@ const MapView: React.FC<MapViewProps> = ({
               
               // Convert GeoJSON coordinates (lon, lat) to Leaflet coordinates (lat, lon)
               const latLngs = routeCoordinates.map(coord => [coord[1], coord[0]]);
+
+              // If hazards intersect this route, attempt to compute a detour automatically
+              const intersects = routeIntersectsHazards(latLngs, hazards, 60);
+              if (intersects && _attempt < 2) {
+                debugLog('Route intersects a critical hazard; attempting detour...');
+                try {
+                  // Choose first critical hazard near the route
+                  const critical = ['Flooding','Accident','Construction','Landslide','Road Closure'];
+                  let targetHz = null; let minD = Infinity;
+                  for (const hz of hazards || []){
+                    if (!critical.includes(hz.type)) continue;
+                    const d = minDistanceToPolylineMeters({lat: hz.lat, lon: hz.lon}, latLngs);
+                    if (d < minD) { minD = d; targetHz = hz; }
+                  }
+                  if (targetHz) {
+                    const offsets = [
+                      {dx: 250, dy: 0}, {dx: -250, dy: 0}, {dx: 0, dy: 250}, {dx: 0, dy: -250}
+                    ];
+                    let best = null;
+                    for (let i=0;i<offsets.length && i<3;i++){
+                      const o = offsets[i];
+                      const via = offsetPoint(targetHz.lat, targetHz.lon, o.dx, o.dy);
+                      const detourData = await (async()=>{
+                        try { return await requestRoute([
+                          {lat: source.lat, lon: source.lon}, via, {lat: destination.lat, lon: destination.lon}
+                        ]);} catch { return null; }
+                      })();
+                      if (!detourData) continue;
+                      // Extract coords
+                      let coords=null; if (detourData.features && detourData.features.length){
+                        const g = detourData.features[0].geometry; coords = g.type==='LineString'?g.coordinates:(g.type==='MultiLineString'?g.coordinates.flat():null);
+                      } else if (detourData.results && detourData.results.length){
+                        const g = detourData.results[0].geometry; coords = g.coordinates || g;
+                      }
+                      if (!coords) continue;
+                      const ll = coords.map(c => [c[1], c[0]]);
+                      if (!routeIntersectsHazards(ll, hazards, 60)){
+                        const lengthMeters = ll.reduce((acc, cur, idx)=>{
+                          if (idx===0) return 0; const prev = ll[idx-1]; return acc + haversineMeters(prev[0], prev[1], cur[0], cur[1]);
+                        },0);
+                        if (!best || lengthMeters < best.length){
+                          best = { data: detourData, latLngs: ll, length: lengthMeters };
+                        }
+                      }
+                    }
+                    if (best){
+                      debugLog('Detour found; re-rendering route');
+                      data = best.data;
+                      // override latLngs for drawing
+                      routeCoordinates = best.latLngs.map(ll => [ll[1], ll[0]]);
+                    } else {
+                      debugLog('No safe detour found; proceeding with original route');
+                    }
+                  }
+                } catch (e) {
+                  debugLog('Detour attempt failed: ' + e.message);
+                }
+              }
               
               // Get route color based on bike type
               let routeColor;
@@ -920,6 +1009,10 @@ const MapView: React.FC<MapViewProps> = ({
           } else if (data.type === 'updateHazards') {
             try {
               addHazardMarkers(data.hazards || []);
+              // If we have an active source/destination and a route, re-check and reroute if needed
+              if (window.__currentRouteCtx && window.__currentRouteCtx.source && window.__currentRouteCtx.destination){
+                fetchRoute(window.__currentRouteCtx.source, window.__currentRouteCtx.destination, window.__currentRouteCtx.bikeType, data.hazards || []);
+              }
             } catch (e) {
               window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Failed to update hazards: ' + e.message }));
             }
