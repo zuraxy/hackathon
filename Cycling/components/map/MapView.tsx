@@ -773,37 +773,72 @@ const MapView: React.FC<MapViewProps> = ({
           }
         });
         
-        // Add welcome message
+        // Add welcome message anchored to the source marker (your location)
+        // The control is positioned absolutely based on the marker's container point
         const welcomeControl = L.control({position: 'topright'});
         welcomeControl.onAdd = function(map) {
           const div = L.DomUtil.create('div', 'welcome-message');
+          // Use absolute positioning so we can anchor to the marker's pixel position
+          div.style.position = 'absolute';
           div.style.backgroundColor = 'white';
           div.style.padding = '10px 15px';
           div.style.borderRadius = '5px';
           div.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
-          div.style.maxWidth = '250px';
+          div.style.maxWidth = '260px';
           div.style.fontSize = '13px';
-          
-          div.innerHTML = '<h4 style="margin: 0 0 5px 0; text-align: center; color: #007AFF;">Welcome to CycleWaze!</h4>';
-          div.innerHTML += '<p style="margin: 0; text-align: center;">Tap "Plan Route" to set your starting point and destination.</p>';
-          
+          div.style.zIndex = '1000';
+          div.style.pointerEvents = 'auto';
+
+          div.innerHTML = '<h4 style="margin: 0 0 5px 0; text-align: left; color: #1565c0;">Welcome to CycleWaze!</h4>';
+          div.innerHTML += '<p style="margin: 0 0 8px 0; text-align: left; color: #333;">Tap "Start Cycling" to set your starting point and destination.</p>';
+
           // Add close button
           const closeBtn = document.createElement('button');
           closeBtn.innerHTML = 'Got it!';
           closeBtn.style.width = '100%';
           closeBtn.style.marginTop = '8px';
-          closeBtn.style.padding = '5px';
+          closeBtn.style.padding = '6px';
           closeBtn.style.border = 'none';
-          closeBtn.style.backgroundColor = '#007AFF';
+          closeBtn.style.backgroundColor = '#1565c0';
           closeBtn.style.color = 'white';
-          closeBtn.style.borderRadius = '3px';
+          closeBtn.style.borderRadius = '4px';
           closeBtn.style.cursor = 'pointer';
-          
+
+          div.appendChild(closeBtn);
+
+          // Positioning helper: place div under the source marker
+          function positionUnderMarker() {
+            try {
+              let latlng;
+              if (typeof sourceMarker !== 'undefined' && sourceMarker && sourceMarker.getLatLng) {
+                latlng = sourceMarker.getLatLng();
+              } else {
+                // Fallback to initial center
+                latlng = map.getCenter();
+              }
+              const p = map.latLngToContainerPoint(latlng);
+              // place the box slightly to the right and below the marker
+              const left = Math.max(8, p.x + 12);
+              const top = Math.max(8, p.y + 28);
+              div.style.left = left + 'px';
+              div.style.top = top + 'px';
+            } catch (e) {
+              console.error('Error positioning welcome box:', e);
+            }
+          }
+
+          // Reposition on map interactions
+          map.on('move zoom resize', positionUnderMarker);
+
+          // Close handler should remove listeners and the control
           closeBtn.onclick = function() {
+            map.off('move zoom resize', positionUnderMarker);
             map.removeControl(welcomeControl);
           };
-          
-          div.appendChild(closeBtn);
+
+          // Initial placement
+          setTimeout(positionUnderMarker, 50);
+
           return div;
         };
         welcomeControl.addTo(map);

@@ -1,14 +1,12 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, View, Alert } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import * as Location from 'expo-location';
 import { ThemedText } from '@/components/ThemedText';
+import * as Location from 'expo-location';
+import { StatusBar } from 'expo-status-bar';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import MapView from '@/components/map/MapView';
-import HazardInput from '@/components/map/HazardInput';
-import RouteSearch from '@/components/map/RouteSearch';
 import RouteInfo from '@/components/map/RouteInfo';
-import LocationDisplay from '@/components/map/LocationDisplay';
+import RouteSearch from '@/components/map/RouteSearch';
 
 // Example hazards - in a real app, these would come from a server
 const exampleHazards = [
@@ -39,6 +37,7 @@ const exampleHazards = [
 ];
 
 export default function HomeScreen() {
+  const routeSearchRef = useRef<any>(null);
   // Default to Manila, but will try to get actual location
   const [currentLocation, setCurrentLocation] = useState({ lat: 14.5995, lon: 120.9842 });
   const [, setLocationPermission] = useState(false);
@@ -134,14 +133,7 @@ export default function HomeScreen() {
     return () => clearTimeout(timer);
   }, [currentLocation]);
 
-  const handleAddHazard = (hazard: {
-    lat: number;
-    lon: number;
-    type: string;
-    description: string;
-  }) => {
-    setHazards([...hazards, hazard]);
-  };
+  // placeholder for adding hazards - currently unused in this build
 
   const handleRouteSearch = (
     source: { lat: number; lon: number },
@@ -194,29 +186,61 @@ export default function HomeScreen() {
       </View> */}
       
       <View>
+        {/* RouteSearch exposes open/close via ref */}
         <RouteSearch 
-        onSearch={handleRouteSearch}
-        defaultSource={currentLocation}
-      />
+          ref={routeSearchRef}
+          onSearch={handleRouteSearch}
+          defaultSource={currentLocation}
+          hideFloatingButton={!!routeInfo}
+        />
       
-      <HazardInput
-        onAddHazard={handleAddHazard}
-        currentLocation={currentLocation}
-        locationName={currentLocationName}
-      />
+        {/* Hide hazard reporting UI while a route is active */}
+        {/* {!routeInfo && (
+          <HazardInput
+            onAddHazard={handleAddHazard}
+            currentLocation={currentLocation}
+            locationName={currentLocationName}
+          />
+        )} */}
       </View>
       
       {routeInfo && (
-        <RouteInfo 
-          routeInfo={routeInfo} 
-          onClose={() => {
-            setRouteInfo(null);
-            if (selectedPoi) {
-              setSelectedPoi(null);
-            }
-          }}
-          destination={destinationName}
-        />
+        <>
+          <RouteInfo 
+            routeInfo={routeInfo} 
+            onClose={() => {
+              setRouteInfo(null);
+              if (selectedPoi) {
+                setSelectedPoi(null);
+              }
+            }}
+            destination={destinationName}
+          />
+
+          {/* Bottom action bar shown while route is active */}
+          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 20, paddingHorizontal: 20, zIndex: 1200 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <View style={{ flex: 0.48 }}>
+                <TouchableOpacity style={{ backgroundColor: '#ffffff', padding: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#ddd' }} onPress={() => {
+                  // reopen planner and clear route info so user can edit plan
+                  setRouteInfo(null);
+                  if (routeSearchRef && (routeSearchRef as any).current && (routeSearchRef as any).current.open) {
+                    (routeSearchRef as any).current.open();
+                  }
+                }}>
+                  <ThemedText style={{ color: '#212121', fontWeight: '700' }}>Back to Plan</ThemedText>
+                </TouchableOpacity>
+              </View>
+              <View style={{ flex: 0.48 }}>
+                <TouchableOpacity style={{ backgroundColor: '#00c853', padding: 12, borderRadius: 8, alignItems: 'center' }} onPress={() => {
+                  // Keep the route active — optionally could start navigation here
+                }}>
+                  <ThemedText style={{ color: '#fff', fontWeight: '700' }}>Start Cycling</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </>
       )}
       
       {selectedPoi && !routeInfo && (

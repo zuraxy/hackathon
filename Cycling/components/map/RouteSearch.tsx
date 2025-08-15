@@ -1,20 +1,28 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { autocompleteLocation, geocodeLocation, reverseGeocode } from '@/services/map-fetching';
 
 interface RouteSearchProps {
   onSearch: (source: { lat: number; lon: number }, destination: { lat: number; lon: number }, bikeType: string) => void;
   defaultSource?: { lat: number; lon: number };
+  // When true, the floating button that opens the modal will not be rendered
+  hideFloatingButton?: boolean;
 }
 
-const RouteSearch: React.FC<RouteSearchProps> = ({ 
+const RouteSearch = forwardRef<any, RouteSearchProps>(function RouteSearch({ 
   onSearch,
-  defaultSource = { lat: 14.5995, lon: 120.9842 } // Default to Manila
-}) => {
+  defaultSource = { lat: 14.5995, lon: 120.9842 }, // Default to Manila
+  hideFloatingButton = false,
+}, ref) {
+  
+  // Expose an imperative handle so parent can open/close the modal
   const [modalVisible, setModalVisible] = useState(false);
+  useImperativeHandle(ref, () => ({
+    open: () => setModalVisible(true),
+    close: () => setModalVisible(false),
+  }));
   const [source, setSource] = useState({
     name: 'Current Location',
     coords: defaultSource
@@ -30,8 +38,7 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
   const [isSearchingFor, setIsSearchingFor] = useState<'source' | 'destination'>('destination');
   const [isSearching, setIsSearching] = useState(false);
   
-  const buttonColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint');
-  // backgroundColor removed (no inline search UI)
+  // Using explicit brand palette colors for modal UI
 
   const bikeTypes = [
     { id: 'regular', name: 'Regular Bike' },
@@ -175,12 +182,14 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={[styles.searchButton, { backgroundColor: '#00c853' }]}
-        onPress={() => setModalVisible(true)}
-      >
-        <ThemedText style={styles.searchButtonText}>Plan Route</ThemedText>
-      </TouchableOpacity>
+      {!hideFloatingButton && (
+        <TouchableOpacity
+          style={[styles.searchButton, { backgroundColor: '#00c853' }]}
+          onPress={() => setModalVisible(true)}
+        >
+          <ThemedText style={styles.searchButtonText}>Plan Route</ThemedText>
+        </TouchableOpacity>
+      )}
 
       <Modal
         animationType="slide"
@@ -193,7 +202,7 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
             <ThemedText type="subtitle" style={styles.modalTitle}>Plan Your Cycling Route</ThemedText>
             
             {/* Source */}
-            <ThemedText>Starting Point:</ThemedText>
+            <ThemedText style={styles.modalText}>Starting Point:</ThemedText>
             <TextInput
               style={[styles.locationInput, isSearchingFor === 'source' ? styles.activeInput : {}]}
               value={isSearchingFor === 'source' ? sourceQuery : (source.name !== 'Current Location' ? source.name : '')}
@@ -241,7 +250,7 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
             )}
             
             {/* Destination */}
-            <ThemedText>Destination:</ThemedText>
+            <ThemedText style={styles.modalText}>Destination:</ThemedText>
             <TextInput
               style={[styles.locationInput, isSearchingFor === 'destination' ? styles.activeInput : {}]}
               value={isSearchingFor === 'destination' ? destQuery : (destination.name || '')}
@@ -288,14 +297,14 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
             )}
             
             {/* Bike Type Selection */}
-            <ThemedText>Bike Type:</ThemedText>
+            <ThemedText style={styles.modalText}>Bike Type:</ThemedText>
             <View style={styles.bikeTypeContainer}>
               {bikeTypes.map(type => (
                 <TouchableOpacity
                   key={type.id}
                   style={[
                     styles.bikeTypeButton,
-                    bikeType === type.id && { backgroundColor: buttonColor }
+                    bikeType === type.id && { backgroundColor: '#4caf50' }
                   ]}
                   onPress={() => setBikeType(type.id)}
                 >
@@ -322,21 +331,21 @@ const RouteSearch: React.FC<RouteSearchProps> = ({
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.button, styles.submitButton, { backgroundColor: buttonColor }]}
+                style={[styles.button, styles.submitButton, { backgroundColor: '#00c853' }]}
                 onPress={handleSubmit}
                 disabled={!destination.name}
               >
-                <ThemedText style={[styles.buttonText, { color: '#FFFFFF' }]}>
-                  Get Route
-                </ThemedText>
+                <ThemedText style={[styles.buttonText, { color: '#FFFFFF' }]}>Start Cycling</ThemedText>
               </TouchableOpacity>
-            </View>
+             </View>
           </ThemedView>
         </View>
       </Modal>
     </View>
   );
-};
+});
+
+// Named function used for forwardRef provides display name to satisfy linters
 
 const styles = StyleSheet.create({
   container: {
@@ -358,9 +367,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
   },
   activeInput: {
-    borderColor: '#007AFF',
+    borderColor: '#00c853',
     borderWidth: 2,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(0, 200, 83, 0.06)',
   },
   searchResultsContainer: {
     marginTop: 5,
@@ -397,27 +406,35 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalView: {
-    borderRadius: 10,
-    padding: 20,
+    borderRadius: 12,
+    padding: 22,
     width: '100%',
     maxHeight: '90%',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 6,
   },
   modalTitle: {
     marginBottom: 15,
     textAlign: 'center',
+    color: '#1565c0',
+    },
+  modalText: {
+    color: '#212121',
+    fontSize: 15,
+    marginBottom: 6,
   },
   locationInput: {
     borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 5,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
     padding: 10,
     marginVertical: 10,
-    color: '#FFF',
+    backgroundColor: '#FFFFFF',
+    color: '#333',
   },
   bikeTypeContainer: {
     flexDirection: 'row',
@@ -425,13 +442,16 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   bikeTypeButton: {
-    backgroundColor: '#EEEEEE',
-    padding: 8,
-    margin: 4,
-    borderRadius: 20,
+  backgroundColor: '#FFFFFF',
+  padding: 8,
+  margin: 4,
+  borderRadius: 20,
+  borderColor: '#4caf50',
+  borderWidth: 1,
   },
   bikeTypeText: {
-    fontSize: 14,
+  fontSize: 14,
+  color: '#4caf50',
   },
   searchContainer: {
     marginTop: 10,
@@ -457,7 +477,10 @@ const styles = StyleSheet.create({
   searchResultItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    borderBottomColor: '#E8F5E9',
+  },
+  searchResultName: {
+    fontSize: 14,
   },
   searchResultName: {
     fontSize: 14,
@@ -476,12 +499,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#EEEEEE',
+    backgroundColor: '#F5F5F5',
   },
-  submitButton: {},
-  buttonText: {
-    fontWeight: 'bold',
-  },
-});
+   submitButton: {},
+   buttonText: {
+     fontWeight: 'bold',
+     color: '#212121',
+   },
+ });
 
 export default RouteSearch;

@@ -1,8 +1,7 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { useThemeColor } from '@/hooks/useThemeColor';
+import React from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 interface RouteInfoProps {
   routeInfo: any;
@@ -11,8 +10,8 @@ interface RouteInfoProps {
 }
 
 const RouteInfo: React.FC<RouteInfoProps> = ({ routeInfo, onClose, destination }) => {
-  const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#1C1C1E' }, 'background');
-  const buttonColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint');
+  // Use the app palette: green and blue accents
+  const backgroundColor = '#FAFFFB'; // subtle green-tinted white
 
   // Check if we have valid route info - works with both v1 and v2 API responses
   if (!routeInfo) {
@@ -25,9 +24,9 @@ const RouteInfo: React.FC<RouteInfoProps> = ({ routeInfo, onClose, destination }
     <View style={styles.container}>
       <ThemedView style={[styles.infoBox, { backgroundColor }]}>
         <View style={styles.headerRow}>
-          <ThemedText type="subtitle">Route Information</ThemedText>
+          <ThemedText type="subtitle" style={styles.headerTitle}>Route Information</ThemedText>
           <TouchableOpacity onPress={onClose}>
-            <ThemedText style={{ color: buttonColor }}>Close</ThemedText>
+            <ThemedText style={styles.closeText}>Close</ThemedText>
           </TouchableOpacity>
         </View>
         
@@ -141,22 +140,25 @@ const styles = StyleSheet.create({
     right: 20,
   },
   infoBox: {
-    padding: 15,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8F5E9',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-    paddingBottom: 5,
+  marginBottom: 10,
+  borderBottomWidth: 1,
+  borderBottomColor: '#E8F5E9',
+  paddingBottom: 8,
   },
   infoRow: {
     flexDirection: 'row',
@@ -165,21 +167,32 @@ const styles = StyleSheet.create({
   },
   label: {
     fontWeight: '600',
+    color: '#4caf50',
   },
   value: {
     textAlign: 'right',
+    color: '#1565c0',
+    fontWeight: '600',
   },
   destinationRow: {
     marginBottom: 10,
     paddingBottom: 5,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    borderBottomColor: '#E8F5E9',
   },
   destinationText: {
-    fontWeight: '500',
+    fontWeight: '600',
     fontSize: 14,
-    color: '#666',
+    color: '#2e7d32',
     fontStyle: 'italic',
+  },
+  headerTitle: {
+    color: '#1565c0',
+    fontWeight: '700',
+  },
+  closeText: {
+    color: '#1565c0',
+    fontWeight: '600',
   }
 });
 
