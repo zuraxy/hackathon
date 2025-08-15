@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View, Animated } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 
 interface Props {
   onFinish: () => void;

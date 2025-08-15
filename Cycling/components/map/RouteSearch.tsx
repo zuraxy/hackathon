@@ -147,6 +147,7 @@ const RouteSearch = forwardRef<any, RouteSearchProps>(function RouteSearch({
     };
   }, []);
 
+
   return (
     <View style={styles.container}>
       {!hideFloatingButton && (
@@ -159,128 +160,131 @@ const RouteSearch = forwardRef<any, RouteSearchProps>(function RouteSearch({
       )}
 
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <ThemedView style={styles.modalView}>
-            <ThemedText type="subtitle" style={styles.modalTitle}>Plan Your Cycling Route</ThemedText>
-            
-            {/* Source */}
-            <ThemedText style={styles.modalText}>Starting Point:</ThemedText>
-            <TextInput
-              style={[styles.locationInput, isSearchingFor === 'source' ? styles.activeInput : {}]}
-              value={isSearchingFor === 'source' ? sourceQuery : (source.name !== 'Current Location' ? source.name : '')}
-              onFocus={() => {
-                setIsSearchingFor('source');
-                const initial = source.name !== 'Current Location' ? source.name : '';
-                setSourceQuery(initial);
-                if (initial.length >= 3) scheduleSearch(initial);
-              }}
-              onChangeText={(text) => {
-                setSourceQuery(text);
-                setIsSearchingFor('source');
-                scheduleSearch(text);
-              }}
-              placeholder={source.name === 'Current Location' ? 'Current Location' : 'Enter starting point'}
-              placeholderTextColor="#999"
-            />
+          <View style={styles.modalInnerWrapper}>
+              <ThemedView style={styles.modalView}>
+                <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="none" contentContainerStyle={styles.modalContent}>
+                  <ThemedText type="subtitle" style={styles.modalTitle}>Plan Your Cycling Route</ThemedText>
+                  
+                  {/* Source */}
+                  <ThemedText style={styles.modalText}>Starting Point:</ThemedText>
+                  <TextInput
+                    style={[styles.locationInput, isSearchingFor === 'source' ? styles.activeInput : {}]}
+                    value={isSearchingFor === 'source' ? sourceQuery : (source.name !== 'Current Location' ? source.name : '')}
+                    onFocus={() => {
+                      setIsSearchingFor('source');
+                      const initial = source.name !== 'Current Location' ? source.name : '';
+                      setSourceQuery(initial);
+                      if (initial.length >= 3) scheduleSearch(initial);
+                    }}
+                    onChangeText={(text) => {
+                      setSourceQuery(text);
+                      setIsSearchingFor('source');
+                      scheduleSearch(text);
+                    }}
+                    placeholder={source.name === 'Current Location' ? 'Current Location' : 'Enter starting point'}
+                    placeholderTextColor="#999"
+                  />
 
-            {/* Search results under Starting Point when searching source */}
-      {isSearchingFor === 'source' && searchResults.length > 0 && (
-              <ScrollView style={styles.searchResults}>
-        {searchResults.map((feature: any, index: number) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.searchResultItem}
-                    onPress={() => selectLocation(feature)}
-                  >
-                    <ThemedText style={styles.modalText}>{feature.properties.formatted}</ThemedText>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-            
-            {/* Destination */}
-            <ThemedText style={styles.modalText}>Destination:</ThemedText>
-            <TextInput
-              style={[styles.locationInput, isSearchingFor === 'destination' ? styles.activeInput : {}]}
-              value={isSearchingFor === 'destination' ? destQuery : (destination.name || '')}
-              onFocus={() => {
-                setIsSearchingFor('destination');
-                const initial = destination.name || '';
-                setDestQuery(initial);
-                if (initial.length >= 3) scheduleSearch(initial);
-              }}
-              onChangeText={(text) => {
-                setDestQuery(text);
-                setIsSearchingFor('destination');
-                scheduleSearch(text);
-              }}
-              placeholder={destination.name ? destination.name : 'Enter destination'}
-              placeholderTextColor="#999"
-            />
-            {/* Search results under Destination when searching destination */}
-      {isSearchingFor === 'destination' && searchResults.length > 0 && (
-              <ScrollView style={styles.searchResults}>
-        {searchResults.map((feature: any, index: number) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.searchResultItem}
-                    onPress={() => selectLocation(feature)}
-                  >
-                    <ThemedText style={styles.modalText}>{feature.properties.formatted}</ThemedText>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            )}
-            
-            {/* Bike Type Selection */}
-            <ThemedText style={styles.modalText}>Bike Type:</ThemedText>
-            <View style={styles.bikeTypeContainer}>
-              {bikeTypes.map(type => (
-                <TouchableOpacity
-                  key={type.id}
-                  style={[
-                    styles.bikeTypeButton,
-                    bikeType === type.id && { backgroundColor: '#4caf50' }
-                  ]}
-                  onPress={() => setBikeType(type.id)}
-                >
-                  <ThemedText 
-                    style={[
-                      styles.bikeTypeText, 
-                      bikeType === type.id && { color: '#FFFFFF' }
-                    ]}
-                  >
-                    {type.name}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  {/* Search results under Starting Point when searching source */}
+                  {isSearchingFor === 'source' && searchResults.length > 0 && (
+                    <View style={styles.searchResults}>
+                      {searchResults.map((feature: any, index: number) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.searchResultItem}
+                          onPress={() => selectLocation(feature)}
+                        >
+                          <ThemedText style={styles.modalText}>{feature.properties.formatted}</ThemedText>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Destination */}
+                  <ThemedText style={styles.modalText}>Destination:</ThemedText>
+                  <TextInput
+                    style={[styles.locationInput, isSearchingFor === 'destination' ? styles.activeInput : {}]}
+                    value={isSearchingFor === 'destination' ? destQuery : (destination.name || '')}
+                    onFocus={() => {
+                      setIsSearchingFor('destination');
+                      const initial = destination.name || '';
+                      setDestQuery(initial);
+                      if (initial.length >= 3) scheduleSearch(initial);
+                    }}
+                    onChangeText={(text) => {
+                      setDestQuery(text);
+                      setIsSearchingFor('destination');
+                      scheduleSearch(text);
+                    }}
+                    placeholder={destination.name ? destination.name : 'Enter destination'}
+                    placeholderTextColor="#999"
+                  />
+                  {/* Search results under Destination when searching destination */}
+                  {isSearchingFor === 'destination' && searchResults.length > 0 && (
+                    <View style={styles.searchResults}>
+                      {searchResults.map((feature: any, index: number) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={styles.searchResultItem}
+                          onPress={() => selectLocation(feature)}
+                        >
+                          <ThemedText style={styles.modalText}>{feature.properties.formatted}</ThemedText>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Bike Type Selection */}
+                  <ThemedText style={styles.modalText}>Bike Type:</ThemedText>
+                  <View style={styles.bikeTypeContainer}>
+                    {bikeTypes.map(type => (
+                      <TouchableOpacity
+                        key={type.id}
+                        style={[
+                          styles.bikeTypeButton,
+                          bikeType === type.id && { backgroundColor: '#4caf50' }
+                        ]}
+                        onPress={() => setBikeType(type.id)}
+                      >
+                        <ThemedText 
+                          style={[
+                            styles.bikeTypeText, 
+                            bikeType === type.id && { color: '#FFFFFF' }
+                          ]}
+                        >
+                          {type.name}
+                        </ThemedText>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
 
-            {/* removed search field below bike type choices as requested */}
-            
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={[styles.button, styles.cancelButton]}
-                onPress={() => setModalVisible(false)}
-              >
-                <ThemedText style={styles.buttonText}>Cancel</ThemedText>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.button, styles.submitButton, { backgroundColor: '#00c853' }]}
-                onPress={handleSubmit}
-                disabled={!destination.name}
-              >
-                <ThemedText style={[styles.buttonText, { color: '#FFFFFF' }]}>Start Cycling</ThemedText>
-              </TouchableOpacity>
-             </View>
-          </ThemedView>
-        </View>
+                {/* Buttons fixed at bottom of modal view so keyboard doesn't push them out */}
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={[styles.button, styles.cancelButton]}
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <ThemedText style={styles.buttonText}>Cancel</ThemedText>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.button, styles.submitButton, { backgroundColor: '#00c853' }]}
+                    onPress={handleSubmit}
+                    disabled={!destination.name}
+                  >
+                    <ThemedText style={[styles.buttonText, { color: '#FFFFFF' }]}>Start Cycling</ThemedText>
+                  </TouchableOpacity>
+                </View>
+              </ThemedView>
+      </View>
+    </View>
       </Modal>
     </View>
   );
@@ -326,9 +330,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  flex: 1,
+  justifyContent: 'flex-end',
+  alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: 20,
   },
@@ -343,6 +347,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 6,
     elevation: 6,
+  justifyContent: 'space-between',
+  },
+  modalInnerWrapper: {
+    width: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  modalContent: {
+    paddingBottom: 100,
   },
   modalTitle: {
     marginBottom: 15,

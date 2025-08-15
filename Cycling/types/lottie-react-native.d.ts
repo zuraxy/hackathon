@@ -1,6 +1,6 @@
 declare module 'lottie-react-native' {
   import { ComponentClass } from 'react';
-  import { ViewProps } from 'react-native';
+    import { ViewProps } from 'react-native';
 
   type LottieProps = ViewProps & {
     source?: any;
