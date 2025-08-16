@@ -234,8 +234,6 @@ const MapView: React.FC<MapViewProps> = ({
       <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
       <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-      <!-- Add Polyline Decorator for route arrows -->
-      <script src="https://unpkg.com/leaflet-polylinedecorator/dist/leaflet.polylineDecorator.js"></script>
       <style>
         body, html {
           margin: 0;
@@ -390,7 +388,7 @@ const MapView: React.FC<MapViewProps> = ({
         let destinationMarker = null;
   let routeLayer = null;
   let routeBackgroundLayer = null;
-  let routeArrowDecorator = null;
+  // removed routeArrowDecorator — no arrowheads on route
         let hazardMarkers = [];
         let poiMarkers = [];
 
@@ -915,25 +913,7 @@ const MapView: React.FC<MapViewProps> = ({
                 dashArray: bikeType === 'electric' ? '10, 5' : null
               }).addTo(map);
               
-              // Add enhanced animated arrow decorators to show direction
-              // store arrow decorator so we can clear it later
-              routeArrowDecorator = L.polylineDecorator(routeLayer, {
-                patterns: [
-                  {
-                    offset: '5%',
-                    repeat: '8%',  // More frequent arrows (was 10%)
-                    symbol: L.Symbol.arrowHead({
-                      pixelSize: 18,  // Larger arrows (was 15)
-                      pathOptions: {
-                        fillOpacity: 1.0,  // More visible (was 0.8)
-                        weight: 1,         // Add outline to arrows
-                        color: routeColor,
-                        fillColor: '#FFFFFF'  // White fill for contrast
-                      }
-                    })
-                  }
-                ]
-              }).addTo(map);
+              // arrows removed for a cleaner route line
               
               // Add enhanced start and end markers with larger, more visible icons
               const startIcon = L.divIcon({
@@ -1028,7 +1008,7 @@ const MapView: React.FC<MapViewProps> = ({
             try {
               if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
               if (routeBackgroundLayer) { map.removeLayer(routeBackgroundLayer); routeBackgroundLayer = null; }
-              if (routeArrowDecorator) { map.removeLayer(routeArrowDecorator); routeArrowDecorator = null; }
+              // no arrow decorator to clear
               if (destinationMarker) { map.removeLayer(destinationMarker); destinationMarker = null; }
               window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'debug', message: 'Route cleared' }));
             } catch (e) {
