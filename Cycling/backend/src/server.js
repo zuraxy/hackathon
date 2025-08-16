@@ -1,3 +1,4 @@
+
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -50,7 +51,7 @@ const HazardInput = z.object({
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // Create hazard
-app.post('/hazards', async (req, res) => {
+app.post('/addHazards', async (req, res) => {
   try {
     const parsed = HazardInput.safeParse(req.body);
     if (!parsed.success) {
@@ -65,7 +66,7 @@ app.post('/hazards', async (req, res) => {
 });
 
 // List hazards nearby (simple box or radius)
-app.get('/hazards', async (req, res) => {
+app.get('/getHazards', async (req, res) => {
   try {
     const { lat, lon, radius = '3000' } = req.query;
     if (!lat || !lon) return res.status(400).json({ error: 'lat_lon_required' });

@@ -59,6 +59,20 @@ export default function HomeScreen() {
   const [routeInfo, setRouteInfo] = useState<any>(null);
   const [isNavigating, setIsNavigating] = useState(false);
 
+  // Manual hazard submission handler (used by HazardInput modal)
+  const handleAddHazard = async (hazard: { lat: number; lon: number; type: string; description: string }) => {
+    // Optimistic update
+    setHazards(prev => [...prev, hazard]);
+    try {
+      await createHazard(hazard);
+      // Refresh from server for authoritative list
+      const list = await fetchHazardsNear(currentLocation.lat, currentLocation.lon, 3000);
+      setHazards(list);
+    } catch {
+      // keep optimistic state on transient failure
+    }
+  };
+
   
 
   // Request permission and get location
@@ -194,14 +208,7 @@ export default function HomeScreen() {
           hideFloatingButton={!!routeInfo || isNavigating}
         />
       
-        {/* Hide hazard reporting UI while a route is active */}
-        {/* {!routeInfo && (
-          <HazardInput
-            onAddHazard={handleAddHazard}
-            currentLocation={currentLocation}
-            locationName={currentLocationName}
-          />
-        )} */}
+  {/* HazardInput disabled per request; quick buttons remain active */}
       </View>
       
   {routeInfo && !isNavigating && (
@@ -339,9 +346,7 @@ export default function HomeScreen() {
             elevation: 5,
           }}
           onPress={() => {
-            const newHazard = { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Accident', description: 'User reported accident' };
-            setHazards(prev => [...prev, newHazard]);
-            createHazard(newHazard).catch(() => {/* no-op optimistic */});
+            handleAddHazard({ lat: currentLocation.lat, lon: currentLocation.lon, type: 'Accident', description: 'User reported accident' });
           }}
         >
           <ThemedText style={{ color: '#fff', fontSize: 24 }}>💥</ThemedText>
@@ -362,9 +367,7 @@ export default function HomeScreen() {
             elevation: 5,
           }}
           onPress={() => {
-            const newHazard = { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Flooding', description: 'User reported flooding' };
-            setHazards(prev => [...prev, newHazard]);
-            createHazard(newHazard).catch(() => {});
+            handleAddHazard({ lat: currentLocation.lat, lon: currentLocation.lon, type: 'Flooding', description: 'User reported flooding' });
           }}
         >
           <ThemedText style={{ color: '#fff', fontSize: 24 }}>🌊</ThemedText>
@@ -385,9 +388,7 @@ export default function HomeScreen() {
             elevation: 5,
           }}
           onPress={() => {
-            const newHazard = { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Construction', description: 'User reported construction' };
-            setHazards(prev => [...prev, newHazard]);
-            createHazard(newHazard).catch(() => {});
+            handleAddHazard({ lat: currentLocation.lat, lon: currentLocation.lon, type: 'Construction', description: 'User reported construction' });
           }}
         >
           <ThemedText style={{ color: '#fff', fontSize: 24 }}>🚧</ThemedText>

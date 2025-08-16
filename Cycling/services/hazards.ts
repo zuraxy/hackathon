@@ -8,8 +8,8 @@ export type HazardRecord = {
   _id?: string;
 };
 
-// Configure your backend base URL (e.g., from env or hardcoded for now)
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE || 'http://localhost:8080';
+// Configure your backend base URL (env override, else deployed Render URL)
+const API_BASE = process.env.EXPO_PUBLIC_API_BASE || 'https://hackathon-6rqo.onrender.com';
 
 // Return hazards in the app's shape: description always present (string)
 export async function fetchHazardsNear(
@@ -17,7 +17,7 @@ export async function fetchHazardsNear(
   lon: number,
   radius = 3000
 ): Promise<{ lat: number; lon: number; type: string; description: string }[]> {
-  const url = `${API_BASE}/hazards?lat=${lat}&lon=${lon}&radius=${radius}`;
+  const url = `${API_BASE}/getHazards?lat=${lat}&lon=${lon}&radius=${radius}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`fetchHazardsNear failed: ${res.status}`);
   const json: HazardRecord[] = await res.json();
@@ -30,7 +30,7 @@ export async function fetchHazardsNear(
 }
 
 export async function createHazard(h: { lat: number; lon: number; type: string; description?: string }) {
-  const res = await fetch(`${API_BASE}/hazards`, {
+  const res = await fetch(`${API_BASE}/addHazards`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(h),
