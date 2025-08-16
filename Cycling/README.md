@@ -32,7 +32,11 @@ While apps like Strava and Google Maps provide cycling directions, they don't of
    npx expo start
    ```
 
-3. Use the Expo Go app or emulator to view the application
+3. Install Expo Go App in your cellphone.
+
+4. Scan QR Code generated in the terminal using Expo Go App.
+
+Note: The device and cellphone should be in the same hotspot.
 
 ## 🔑 API Keys
 
@@ -51,7 +55,10 @@ This project was created for the HackerCup hackathon by 2nd year students from D
 
 ## 👥 Team Members
 
-- [Team member names go here]
+- Aquino, Bon Windel (BSCS-ST, II)
+- Dela Cruz, Karl Matthew (BSCS-ST, II)
+- Domanais, Joshua (BSCS-ST, II)
+- Espinosa, Jose Miguel (BSCS-ST, II)
 
 ## 🔮 Future Vision
 
