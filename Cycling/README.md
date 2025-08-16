@@ -1,6 +1,6 @@
-# CycleWaze - Intelligent Cycling Routes
+# Pedal Map - Intelligent Cycling Routes
 
-CycleWaze is an innovative cycling route planner app created by DLSU students for the HackerCup hackathon. Think of it as "Waze but for Strava" - providing intelligent route planning specifically designed for cyclists.
+Pedal Map is an innovative cycling route planner app created by DLSU students for the HackerCup hackathon. Think of it as "Waze but for Strava" - providing intelligent route planning specifically designed for cyclists.
 
 ## 🚲 Features
 
@@ -11,7 +11,7 @@ CycleWaze is an innovative cycling route planner app created by DLSU students fo
 
 ## 💡 Project Concept
 
-While apps like Strava and Google Maps provide cycling directions, they don't offer the real-time hazard reporting and route adjustment that drivers enjoy with apps like Waze. CycleWaze fills this gap by creating a cycling-specific navigation platform that prioritizes safety and optimal routing based on the specific type of bicycle being used.
+While apps like Strava and Google Maps provide cycling directions, they don't offer the real-time hazard reporting and route adjustment that drivers enjoy with apps like Waze. Pedal Map fills this gap by creating a cycling-specific navigation platform that prioritizes safety and optimal routing based on the specific type of bicycle being used.
 
 ## 🛠️ Technology Stack
 
@@ -55,4 +55,4 @@ This project was created for the HackerCup hackathon by 2nd year students from D
 
 ## 🔮 Future Vision
 
-We envision CycleWaze becoming an essential tool for the cycling community, enhancing safety and route optimization for cyclists of all levels. The platform could eventually integrate with fitness tracking features, cycling communities, and bike-sharing services.
+We envision Pedal Map becoming an essential tool for the cycling community, enhancing safety and route optimization for cyclists of all levels. The platform could eventually integrate with fitness tracking features, cycling communities, and bike-sharing services.

@@ -71,7 +71,7 @@ export default function HomeScreen() {
         if (status !== 'granted') {
           Alert.alert(
             'Location Permission Denied',
-            'CycleWaze needs your location to provide navigation. You can enable location services in your device settings.',
+            'Pedal Map needs your location to provide navigation. You can enable location services in your device settings.',
             [{ text: 'OK' }]
           );
           setIsLocating(false);

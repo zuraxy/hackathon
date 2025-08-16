@@ -1071,7 +1071,7 @@ const MapView: React.FC<MapViewProps> = ({
           div.style.zIndex = '1000';
           div.style.pointerEvents = 'auto';
 
-          div.innerHTML = '<h4 style="margin: 0 0 5px 0; text-align: left; color: #1B9CDA;">Welcome to CycleWaze!</h4>';
+          div.innerHTML = '<h4 style="margin: 0 0 5px 0; text-align: left; color: #1B9CDA;">Welcome to Pedal Map!</h4>';
           div.innerHTML += '<p style="margin: 0 0 8px 0; text-align: left; color: #333;">Tap "Start Cycling" to set your starting point and destination.</p>';
 
           // Add close button

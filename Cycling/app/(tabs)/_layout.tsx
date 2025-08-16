@@ -1,15 +1,7 @@
-import { Tabs } from 'expo-router';
+import { Slot } from 'expo-router';
 import React from 'react';
 
-export default function TabsLayout() {
-  return (
-    <Tabs screenOptions={{ headerShown: false }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-        }}
-      />
-    </Tabs>
-  );
+// No Tabs UI; just render the nested screen(s) directly.
+export default function TabsGroupLayout() {
+	return <Slot />;
 }

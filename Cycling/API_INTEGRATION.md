@@ -1,6 +1,6 @@
 # API Service Integration Documentation
 
-This document explains how the service files are integrated with the frontend components in the CycleWaze app.
+This document explains how the service files are integrated with the frontend components in the Pedal Map app.
 
 ## Service Files
 
