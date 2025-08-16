@@ -43,7 +43,7 @@ export default function StartupSplash({ onFinish }: Props) {
         <LottieComp
           autoPlay
           loop={false}
-          source={{ uri: 'https://assets9.lottiefiles.com/packages/lf20_tfb3estd.json' }}
+          source={{ uri: 'assets/images/logo.png' }}
           style={styles.lottie}
           onAnimationFinish={async () => {
             try { await SplashScreen.hideAsync(); } catch {}
@@ -58,7 +58,7 @@ export default function StartupSplash({ onFinish }: Props) {
   return (
     <View style={styles.container}>
       <Animated.Image
-        source={require('../assets/images/icon.png')}
+        source={require('../assets/images/logo.png')}
         style={[styles.lottie, { opacity: fade }]}
         resizeMode="contain"
       />
