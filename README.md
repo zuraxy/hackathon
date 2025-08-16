@@ -19,6 +19,7 @@ While apps like Strava and Google Maps provide cycling directions, they don't of
 - **Mapping**: Leaflet with Geoapify map tiles
 - **Routing**: Geoapify Routing API
 - **Styling**: Custom-themed UI components
+- **OS**: Android only
 
 ## 🏃‍♂️ Getting Started
 
@@ -42,7 +43,7 @@ Note: The device and cellphone should be in the same hotspot.
 
 ## 🔑 API Keys
 
-The app uses the Geoapify API for mapping and routing functionality. The current API key is included for demonstration purposes.
+The app uses the Geoapify API for mapping and routing functionality. The current API key is included for demonstration purposes. Do note that the use of Render's free service has 50 seconds delay in backend services.
 
 ## 📱 App Workflow
 
@@ -65,3 +66,7 @@ This project was created for the HackerCup hackathon by 2nd year students from D
 ## 🔮 Future Vision
 
 We envision Pedal Map becoming an essential tool for the cycling community, enhancing safety and route optimization for cyclists of all levels. The platform could eventually integrate with fitness tracking features, cycling communities, and bike-sharing services.
+
+## AI Usage
+
+We consulted Claude Sonnet for bugs and errors faced in the development phase of this project. 
