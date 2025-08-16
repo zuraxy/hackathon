@@ -134,22 +134,9 @@ const MapView: React.FC<MapViewProps> = ({
       } else if (data.type === 'poiSelected') {
         console.log('POI selected:', data.poi);
         setSelectedPoi(data.poi);
-        
-        // Notify parent component if handler is provided
+        // Notify parent component if handler is provided (do not auto-route)
         if (onPoiSelected) {
           onPoiSelected(data.poi);
-        }
-        
-        // Automatically route to this POI
-        if (webViewRef.current && sourceLocation) {
-          const message = JSON.stringify({
-            type: 'updateRoute',
-            source: sourceLocation,
-            destination: { lat: data.poi.lat, lon: data.poi.lon },
-            bikeType,
-            hazards,
-          });
-          webViewRef.current.postMessage(message);
         }
       }
     } catch (e) {
@@ -270,7 +257,7 @@ const MapView: React.FC<MapViewProps> = ({
         #map {
           width: 100%;
           height: 100%;
-          background-color: #f0f0f0;
+          background-color: #e8f5e9; /* subtle green backdrop while tiles load */
         }
         .hazard-marker {
           width: 24px !important;
@@ -302,7 +289,7 @@ const MapView: React.FC<MapViewProps> = ({
           background-color: transparent !important;
         }
         .poi-icon {
-          color: #1976D2;
+          color: #2DD0F6;
           font-size: 32px;
           text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
           cursor: pointer;
@@ -312,7 +299,7 @@ const MapView: React.FC<MapViewProps> = ({
           width: 100%;
           padding: 8px;
           margin-top: 8px;
-          background-color: #1976D2;
+          background-color: #2DD0F6;
           color: white;
           border: none;
           border-radius: 4px;
@@ -321,7 +308,7 @@ const MapView: React.FC<MapViewProps> = ({
           font-weight: bold;
         }
         .poi-popup-button:hover {
-          background-color: #1565C0;
+          background-color: #1B9CDA;
         }
         @keyframes pulse {
           0% {
@@ -372,11 +359,17 @@ const MapView: React.FC<MapViewProps> = ({
           throw e;
         }
         
-        // Use OpenStreetMap tiles as a fallback - these are free and widely accessible
+        // Use CARTO Voyager tiles for a Google-like, green-accented basemap
+        const cartoTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          maxZoom: 20,
+          attribution: '© OpenStreetMap contributors © CARTO'
+        }).addTo(map);
+        
+        // Optional: fallback to OSM if CARTO fails (kept but not added by default)
         const osmTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
           attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+        });
         
         // Try to add Geoapify map tiles for cycling
         
@@ -542,17 +535,52 @@ const MapView: React.FC<MapViewProps> = ({
           }
         }
         
+        // Helper to map POI category to an emoji/icon
+        function getEmojiForCategory(category, name){
+          var c = (category || '').toLowerCase();
+          try {
+            if (c.indexOf('restaurant') !== -1) return '🍽️';
+            if (c.indexOf('fast_food') !== -1) return '🍔';
+            if (c.indexOf('cafe') !== -1 || c.indexOf('coffee') !== -1) return '☕';
+            if (c.indexOf('supermarket') !== -1 || c.indexOf('grocery') !== -1) return '🛒';
+            if (c.indexOf('park') !== -1 || c.indexOf('garden') !== -1) return '🌳';
+            if (c.indexOf('museum') !== -1 || c.indexOf('art') !== -1) return '🏛️';
+            if (c.indexOf('hospital') !== -1 || c.indexOf('clinic') !== -1 || c.indexOf('healthcare') !== -1) return '🏥';
+            if (c.indexOf('hotel') !== -1 || c.indexOf('accommodation') !== -1) return '🏨';
+            if (c.indexOf('fuel') !== -1 || c.indexOf('gas') !== -1) return '⛽';
+            if (c.indexOf('charging') !== -1 || c.indexOf('ev') !== -1) return '🔌';
+            if (c.indexOf('bicycle') !== -1 || c.indexOf('bike') !== -1) return '🚲';
+            if (c.indexOf('pharmacy') !== -1 || c.indexOf('drugstore') !== -1) return '💊';
+            if (c.indexOf('bank') !== -1 || c.indexOf('atm') !== -1) return '🏧';
+            if (c.indexOf('convenience') !== -1) return '🏪';
+            if (c.indexOf('bus') !== -1 || c.indexOf('tram') !== -1 || c.indexOf('rail') !== -1 || c.indexOf('subway') !== -1 || c.indexOf('train') !== -1 || c.indexOf('station') !== -1) return '🚉';
+            if (c.indexOf('toilet') !== -1 || c.indexOf('restroom') !== -1) return '🚻';
+            if (c.indexOf('beach') !== -1) return '🏖️';
+            if (c.indexOf('bar') !== -1 || c.indexOf('pub') !== -1) return '🍻';
+          } catch (e) {}
+          return '📍';
+        }
+
         // Helper function to add a POI marker
-  function addPOIMarker(properties) {
+        function addPOIMarker(properties) {
           try {
             const { lat, lon, name, address_line1, categories } = properties;
             const displayName = name || 'POI';
             const address = address_line1 || '';
-            const category = Array.isArray(categories) && categories.length ? categories[0] : 'poi';
+            var category = 'poi';
+            var categoryStr = '';
+            if (Array.isArray(categories) && categories.length) {
+              category = categories[0];
+              categoryStr = categories.join(' ');
+            } else if (typeof categories === 'string') {
+              category = categories;
+              categoryStr = categories;
+            }
+            const emoji = getEmojiForCategory(categoryStr || category, displayName);
 
             const poiIcon = L.divIcon({
               className: 'poi-marker',
-              html: '<div class="poi-icon">📍</div>',
+              html: '<div class="poi-icon">' + emoji + '</div>',
               iconSize: [32, 32]
             });
 
@@ -565,7 +593,7 @@ const MapView: React.FC<MapViewProps> = ({
               popupHtml += '<div style="font-size:12px; color:#555; margin-bottom:8px;">' + address + '</div>';
             }
             var btnId = 'poi-go-btn-' + Math.random().toString(36).slice(2);
-            popupHtml += '<button id="' + btnId + '" class="poi-popup-button">Go</button>';
+            popupHtml += '<button id="' + btnId + '" class="poi-popup-button">Select</button>';
             popupHtml += '</div>';
             marker.bindPopup(popupHtml);
             marker.on('popupopen', () => {
@@ -851,7 +879,7 @@ const MapView: React.FC<MapViewProps> = ({
               
               // Get route color based on bike type
               let routeColor;
-              switch(bikeType) {
+        switch(bikeType) {
                 case 'road':
                   routeColor = '#FF5722'; // Orange-red for road bikes
                   break;
@@ -862,7 +890,7 @@ const MapView: React.FC<MapViewProps> = ({
                   routeColor = '#2196F3'; // Blue for electric bikes
                   break;
                 default:
-                  routeColor = '#673AB7'; // Purple for regular bikes
+          routeColor = '#00c853'; // Green accent for regular bikes
               }
               
               // Draw route on map with bike-specific styling and enhanced visibility
@@ -1063,7 +1091,7 @@ const MapView: React.FC<MapViewProps> = ({
           div.style.zIndex = '1000';
           div.style.pointerEvents = 'auto';
 
-          div.innerHTML = '<h4 style="margin: 0 0 5px 0; text-align: left; color: #1565c0;">Welcome to CycleWaze!</h4>';
+          div.innerHTML = '<h4 style="margin: 0 0 5px 0; text-align: left; color: #1B9CDA;">Welcome to CycleWaze!</h4>';
           div.innerHTML += '<p style="margin: 0 0 8px 0; text-align: left; color: #333;">Tap "Start Cycling" to set your starting point and destination.</p>';
 
           // Add close button
@@ -1073,7 +1101,7 @@ const MapView: React.FC<MapViewProps> = ({
           closeBtn.style.marginTop = '8px';
           closeBtn.style.padding = '6px';
           closeBtn.style.border = 'none';
-          closeBtn.style.backgroundColor = '#1565c0';
+          closeBtn.style.backgroundColor = '#2DD0F6';
           closeBtn.style.color = 'white';
           closeBtn.style.borderRadius = '4px';
           closeBtn.style.cursor = 'pointer';
@@ -1149,7 +1177,7 @@ const MapView: React.FC<MapViewProps> = ({
     <View style={styles.container}>
       {(loading || isLoadingLocation) && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0066ff" />
+          <ActivityIndicator size="large" color="#2DD0F6" />
           <ThemedText style={styles.loadingText}>
             {isLoadingLocation ? 'Getting your location...' : 'Loading map...'}
           </ThemedText>
@@ -1161,13 +1189,7 @@ const MapView: React.FC<MapViewProps> = ({
         </View>
       )}
       
-      {selectedPoi && (
-        <View style={styles.poiToastContainer}>
-          <ThemedText style={styles.poiToastText}>
-            Routing to: {selectedPoi.name}
-          </ThemedText>
-        </View>
-      )}
+  {/* Removed internal POI toast to avoid auto-routing impression; main screen handles selection UI */}
       
       {!loading && !isLoadingLocation && (
         <View style={styles.locationNameContainer}>
@@ -1323,7 +1345,7 @@ const styles = StyleSheet.create({
     bottom: 100,
     left: 20,
     right: 20,
-    backgroundColor: '#1976D2',
+  backgroundColor: '#2DD0F6',
     padding: 10,
     borderRadius: 8,
     alignItems: 'center',

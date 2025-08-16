@@ -472,14 +472,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EEEEEE',
     borderRadius: 5,
+  backgroundColor: '#FFFFFF',
+  // subtle elevation so it doesn't look transparent
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 3,
+  elevation: 2,
   },
   searchResultItem: {
     padding: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E8F5E9',
+  backgroundColor: '#FFFFFF',
   },
   searchResultName: {
     fontSize: 14,
+  color: '#212121',
   },
   buttonContainer: {
     flexDirection: 'row',

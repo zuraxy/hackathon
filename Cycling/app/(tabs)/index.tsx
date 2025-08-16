@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/ThemedText';
 import * as Location from 'expo-location';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import MapView from '@/components/map/MapView';
@@ -56,6 +56,7 @@ export default function HomeScreen() {
     description: string;
   }[]>([]);
   const [routeInfo, setRouteInfo] = useState<any>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   
 
@@ -152,18 +153,8 @@ export default function HomeScreen() {
   
   const handlePoiSelected = (poi: any) => {
     console.log('POI selected in main app:', poi);
+    // Only store selection; do NOT set destination automatically
     setSelectedPoi(poi);
-    setDestinationName(poi.name);
-    setDestinationLocation({
-      lat: poi.lat,
-      lon: poi.lon
-    });
-    
-    // Show route info when POI is selected
-    if (routeInfo) {
-      // Leave the current route info visible if it exists
-      // It will be updated when the route is calculated
-    }
   };
 
   return (
@@ -191,7 +182,7 @@ export default function HomeScreen() {
           ref={routeSearchRef}
           onSearch={handleRouteSearch}
           defaultSource={currentLocation}
-          hideFloatingButton={!!routeInfo}
+          hideFloatingButton={!!routeInfo || isNavigating}
         />
       
         {/* Hide hazard reporting UI while a route is active */}
@@ -204,7 +195,7 @@ export default function HomeScreen() {
         )} */}
       </View>
       
-      {routeInfo && (
+  {routeInfo && !isNavigating && (
         <>
           <RouteInfo 
             routeInfo={routeInfo} 
@@ -249,7 +240,7 @@ export default function HomeScreen() {
               </View>
               <View style={{ flex: 0.48 }}>
                 <TouchableOpacity style={{ backgroundColor: '#00c853', padding: 12, borderRadius: 8, alignItems: 'center' }} onPress={() => {
-                  // Keep the route active — optionally could start navigation here
+                  setIsNavigating(true);
                 }}>
                   <ThemedText style={{ color: '#fff', fontWeight: '700' }}>Start Cycling</ThemedText>
                 </TouchableOpacity>
@@ -258,11 +249,34 @@ export default function HomeScreen() {
           </View>
         </>
       )}
+
+      {/* Simple navigation HUD when actively navigating */}
+      {isNavigating && routeInfo && (
+        <View style={styles.navHudContainer}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            <ThemedText style={styles.navHudPrimary}>{formatDistance(routeInfo)}</ThemedText>
+            <ThemedText style={styles.navHudSecondary}>• {formatEta(routeInfo)} left</ThemedText>
+          </View>
+          <TouchableOpacity
+            style={styles.navHudEndButton}
+            onPress={() => {
+              setIsNavigating(false);
+              // End navigation and clear route
+              setRouteInfo(null);
+              setDestinationLocation(undefined);
+              setDestinationName(undefined);
+              setSelectedPoi(null);
+            }}
+          >
+            <ThemedText style={{ color: '#fff', fontWeight: '700' }}>End</ThemedText>
+          </TouchableOpacity>
+        </View>
+      )}
       
       {selectedPoi && !routeInfo && (
         <View style={styles.poiToastContainer}>
           <ThemedText style={styles.poiToastText}>
-            Routing to: {selectedPoi.name || 'Selected location'}
+            Selected: {selectedPoi.name || 'Location'}
           </ThemedText>
           {selectedPoi.category && (
             <ThemedText style={styles.poiToastSubtext}>
@@ -270,13 +284,51 @@ export default function HomeScreen() {
               {selectedPoi.address ? ` • ${selectedPoi.address}` : ''}
             </ThemedText>
           )}
+          <View style={{ marginTop: 8, flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity
+              style={{ backgroundColor: '#00c853', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6 }}
+              onPress={() => {
+                setDestinationLocation({ lat: selectedPoi.lat, lon: selectedPoi.lon });
+                setDestinationName(selectedPoi.name);
+              }}
+            >
+              <ThemedText style={{ color: '#fff', fontWeight: '700' }}>Route here</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ backgroundColor: '#ffffff', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, borderWidth: 1, borderColor: '#ddd' }}
+              onPress={() => setSelectedPoi(null)}
+            >
+              <ThemedText style={{ color: '#212121', fontWeight: '700' }}>Dismiss</ThemedText>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
-      {/* Quick Hazard Report buttons */}
-      <View style={{ position: 'absolute', right: 16, bottom: 100, gap: 8, zIndex: 1300 }}>
+      {/* Quick Hazard Report circular emoji buttons (top-right) */}
+    <View
+        style={{
+          position: 'absolute',
+          right: 16,
+  top: 120,
+          gap: 12,
+          zIndex: 1300,
+        }}
+      >
         <TouchableOpacity
-          style={{ backgroundColor: '#e53935', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 20, alignItems: 'center' }}
+          accessibilityLabel="Report Accident"
+          style={{
+            backgroundColor: '#e53935',
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 3,
+            elevation: 5,
+          }}
           onPress={() => {
             setHazards(prev => [
               ...prev,
@@ -284,10 +336,23 @@ export default function HomeScreen() {
             ]);
           }}
         >
-          <ThemedText style={{ color: '#fff', fontWeight: '700' }}>Report Accident</ThemedText>
+          <ThemedText style={{ color: '#fff', fontSize: 24 }}>💥</ThemedText>
         </TouchableOpacity>
         <TouchableOpacity
-          style={{ backgroundColor: '#1e88e5', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 20, alignItems: 'center' }}
+          accessibilityLabel="Report Flooding"
+          style={{
+            backgroundColor: '#1e88e5',
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 3,
+            elevation: 5,
+          }}
           onPress={() => {
             setHazards(prev => [
               ...prev,
@@ -295,10 +360,23 @@ export default function HomeScreen() {
             ]);
           }}
         >
-          <ThemedText style={{ color: '#fff', fontWeight: '700' }}>Report Flooding</ThemedText>
+          <ThemedText style={{ color: '#fff', fontSize: 24 }}>🌊</ThemedText>
         </TouchableOpacity>
         <TouchableOpacity
-          style={{ backgroundColor: '#fb8c00', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 20, alignItems: 'center' }}
+          accessibilityLabel="Report Construction"
+          style={{
+            backgroundColor: '#fb8c00',
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.3,
+            shadowRadius: 3,
+            elevation: 5,
+          }}
           onPress={() => {
             setHazards(prev => [
               ...prev,
@@ -306,7 +384,7 @@ export default function HomeScreen() {
             ]);
           }}
         >
-          <ThemedText style={{ color: '#fff', fontWeight: '700' }}>Report Construction</ThemedText>
+          <ThemedText style={{ color: '#fff', fontSize: 24 }}>🚧</ThemedText>
         </TouchableOpacity>
       </View>
     </View>
@@ -354,4 +432,63 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
+  navHudContainer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
+    backgroundColor: '#111827', // near-black for focus
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 1400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  navHudPrimary: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  navHudSecondary: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  navHudEndButton: {
+    backgroundColor: '#ef4444',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
 });
+
+// Helpers to format distance and ETA from routeInfo (works with Geoapify feature properties)
+function formatDistance(routeInfo: any) {
+  try {
+    const props = (routeInfo && routeInfo.properties) || {};
+    const meters = props.distance || props.length || (props.legs && props.legs[0] && props.legs[0].distance) || 0;
+    if (meters < 1000) return `${Math.round(meters)} m`;
+    const km = meters / 1000;
+    return `${km.toFixed(km >= 10 ? 0 : 1)} km`;
+  } catch { return ''; }
+}
+
+function formatEta(routeInfo: any) {
+  try {
+    const props = (routeInfo && routeInfo.properties) || {};
+    const secs = (props.legs && props.legs[0] && props.legs[0].time) || props.time || props.duration || 0;
+    if (secs < 60) return `${secs}s`;
+    const mins = Math.round(secs / 60);
+    if (mins < 60) return `${mins} min`;
+    const hrs = Math.floor(mins / 60);
+    const rem = mins % 60;
+    return `${hrs} hr ${rem} min`;
+  } catch { return ''; }
+}
