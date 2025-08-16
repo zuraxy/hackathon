@@ -2,8 +2,10 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import React, { useState } from 'react';
 import 'react-native-reanimated';
 
+import StartupSplash from '@/components/StartupSplash';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 export default function RootLayout() {
@@ -11,10 +13,15 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+  const [splashDone, setSplashDone] = useState(false);
 
   if (!loaded) {
-    // Async font loading only occurs in development.
+    // Keep showing native splash while fonts load
     return null;
+  }
+
+  if (!splashDone) {
+    return <StartupSplash onFinish={() => setSplashDone(true)} />;
   }
 
   return (

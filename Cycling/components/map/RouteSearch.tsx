@@ -179,6 +179,7 @@ const RouteSearch = forwardRef<any, RouteSearchProps>(function RouteSearch({
     };
   }, []);
 
+
   return (
     <View style={styles.container}>
       {!hideFloatingButton && (
@@ -191,7 +192,7 @@ const RouteSearch = forwardRef<any, RouteSearchProps>(function RouteSearch({
       )}
 
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
@@ -398,9 +399,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  flex: 1,
+  justifyContent: 'flex-end',
+  alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     padding: 20,
   },
@@ -415,6 +416,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 6,
     elevation: 6,
+  justifyContent: 'space-between',
+  },
+  modalInnerWrapper: {
+    width: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  modalContent: {
+    paddingBottom: 100,
   },
   modalTitle: {
     marginBottom: 15,
