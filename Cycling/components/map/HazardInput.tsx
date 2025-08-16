@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import React, { useEffect, useState } from 'react';
+import { Modal, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import LocationDisplay from './LocationDisplay';
 
 interface HazardInputProps {
@@ -20,15 +20,7 @@ const HazardInput: React.FC<HazardInputProps> = ({ onAddHazard, currentLocation,
   const buttonColor = useThemeColor({ light: '#007AFF', dark: '#0A84FF' }, 'tint');
   const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#1C1C1E' }, 'background');
   
-  useEffect(() => {
-    if (locationName) {
-      setCurrentLocationAddress(locationName);
-    } else {
-      // Reverse geocode if no location name provided
-      reverseGeocode(currentLocation.lat, currentLocation.lon);
-    }
-  }, [locationName, currentLocation]);
-  
+
   const reverseGeocode = async (lat: number, lon: number) => {
     try {
       const response = await fetch(
@@ -44,6 +36,15 @@ const HazardInput: React.FC<HazardInputProps> = ({ onAddHazard, currentLocation,
       console.error('Error reverse geocoding:', error);
     }
   };
+
+  useEffect(() => {
+    if (locationName) {
+      setCurrentLocationAddress(locationName);
+    } else {
+      // Reverse geocode if no location name provided
+      reverseGeocode(currentLocation.lat, currentLocation.lon);
+    }
+  }, [locationName, currentLocation]);
   
   const hazardTypes = [
     'Pothole',
@@ -172,7 +173,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    justifyContent: ''
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   reportButtonText: {
   color: '#FFFFFF',
