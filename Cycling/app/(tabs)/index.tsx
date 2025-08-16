@@ -6,6 +6,7 @@ import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import MapView from '@/components/map/MapView';
 import RouteInfo from '@/components/map/RouteInfo';
+import { createHazard, fetchHazardsNear } from '@/services/hazards';
 import RouteSearch from '@/components/map/RouteSearch';
 
 // Example hazards - in a real app, these would come from a server
@@ -118,21 +119,29 @@ export default function HomeScreen() {
     })();
   }, []);
 
-  // Load example hazards
+  // Fetch nearby hazards from backend whenever location changes
   useEffect(() => {
-    // In a real app, would fetch real hazards near the user's location
-    const timer = setTimeout(() => {
-      // Adjust hazards to be near the user's actual location
-      const adjustedHazards = exampleHazards.map(hazard => ({
-        ...hazard,
-        lat: currentLocation.lat + (hazard.lat - 14.5995),
-        lon: currentLocation.lon + (hazard.lon - 120.9842)
-      }));
-      setHazards(adjustedHazards);
-    }, 3000);
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await fetchHazardsNear(currentLocation.lat, currentLocation.lon, 3000);
+        if (!cancelled) setHazards(list);
+      } catch (e) {
+        console.warn('Failed to load hazards:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentLocation.lat, currentLocation.lon]);
 
-    return () => clearTimeout(timer);
-  }, [currentLocation]);
+  // Poll hazards every 20s while app is focused (simple approach)
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchHazardsNear(currentLocation.lat, currentLocation.lon, 3000)
+        .then((list) => setHazards(list))
+        .catch(() => {});
+    }, 20000);
+    return () => clearInterval(id);
+  }, [currentLocation.lat, currentLocation.lon]);
 
   // placeholder for adding hazards - currently unused in this build
 
@@ -330,10 +339,9 @@ export default function HomeScreen() {
             elevation: 5,
           }}
           onPress={() => {
-            setHazards(prev => [
-              ...prev,
-              { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Accident', description: 'User reported accident' },
-            ]);
+            const newHazard = { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Accident', description: 'User reported accident' };
+            setHazards(prev => [...prev, newHazard]);
+            createHazard(newHazard).catch(() => {/* no-op optimistic */});
           }}
         >
           <ThemedText style={{ color: '#fff', fontSize: 24 }}>💥</ThemedText>
@@ -354,10 +362,9 @@ export default function HomeScreen() {
             elevation: 5,
           }}
           onPress={() => {
-            setHazards(prev => [
-              ...prev,
-              { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Flooding', description: 'User reported flooding' },
-            ]);
+            const newHazard = { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Flooding', description: 'User reported flooding' };
+            setHazards(prev => [...prev, newHazard]);
+            createHazard(newHazard).catch(() => {});
           }}
         >
           <ThemedText style={{ color: '#fff', fontSize: 24 }}>🌊</ThemedText>
@@ -378,10 +385,9 @@ export default function HomeScreen() {
             elevation: 5,
           }}
           onPress={() => {
-            setHazards(prev => [
-              ...prev,
-              { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Construction', description: 'User reported construction' },
-            ]);
+            const newHazard = { lat: currentLocation.lat, lon: currentLocation.lon, type: 'Construction', description: 'User reported construction' };
+            setHazards(prev => [...prev, newHazard]);
+            createHazard(newHazard).catch(() => {});
           }}
         >
           <ThemedText style={{ color: '#fff', fontSize: 24 }}>🚧</ThemedText>
